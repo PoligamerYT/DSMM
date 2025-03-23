@@ -71,4 +71,4 @@ This project is an unofficial fan-made mod. *Deepest Sword* is developed by Cosm
 
 ## 📃 License
 
-GPL-3.0 License — see [LICENSE](LICENSE) for details.
+GPL-3.0 License — see [LICENSE](https://github.com/PoligamerYT/DSMM/blob/master/LICENSE.txt) for details.
