@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DSMM.Network.Enums;
+using System;
 using System.Collections.Generic;
 
 namespace DSMM.Network.Packets
@@ -13,5 +14,7 @@ namespace DSMM.Network.Packets
         public int Stage { get; set; }
         public int Sword { get; set; }
         public List<Player> Players { get; set; }
+        public GameMode GameMode { get; set; }
+        public ControlType ControlType { get; set; }
     }
 }

@@ -3,8 +3,10 @@ using Steamworks;
 using System;
 using System.Collections;
 using System.Linq;
+using System.Reflection;
 using TMPro;
 using UnityEngine;
+using Random = System.Random;
 using Vector3 = DSMM.Math.Vector3;
 
 namespace DSMM.Common
@@ -166,6 +168,55 @@ namespace DSMM.Common
             }
 
             transform.rotation = targetRotation;
+        }
+
+        public static void DestroyAllPlayers()
+        {
+            foreach (Player player in NetworkManager.Instance.Players)
+            {
+                if (player.SteamID == SteamUser.GetSteamID().m_SteamID)
+                {
+                    GameObject.Destroy(player.GetPlayerController()._playerActor._sprite.transform.GetChild(0).gameObject);
+
+                    GameObject.Find(player.SteamID.ToString()).name = "[PlayerController]";
+                }
+                else
+                {
+                    SteamNetworking.CloseP2PSessionWithUser(new CSteamID(player.SteamID));
+                    GameObject.Destroy(GameObject.Find(player.SteamID.ToString()));
+                }
+            }
+
+            NetworkManager.Instance.Players.Clear();
+        }
+
+        public static IEnumerator AdjustSword(int targetSwordValue)
+        {
+            var field = typeof(Sword).GetField("_length", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            int currentSwordValue = (int)field.GetValue(PlayerController.Instance._sword);
+
+            while (currentSwordValue != targetSwordValue)
+            {
+                if (currentSwordValue < targetSwordValue)
+                {
+                    PlayerController.Instance._sword.Grow();
+                }
+                else
+                {
+                    PlayerController.Instance._sword.Shrink();
+                }
+
+                yield return null;
+                currentSwordValue = (int)field.GetValue(PlayerController.Instance._sword);
+            }
+        }
+
+        public static T GetRandomEnumValue<T>() where T : Enum
+        {
+            Array values = Enum.GetValues(typeof(T));
+            Random random = new Random();
+            return (T)values.GetValue(random.Next(values.Length));
         }
     }
 }

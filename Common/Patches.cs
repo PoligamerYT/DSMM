@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using static Main;
 using DSMM.UI;
+using DSMM.Discord;
 
 namespace DSMM.Common
 {
@@ -76,6 +77,25 @@ namespace DSMM.Common
         }
 
         [HarmonyPrefix]
+        [HarmonyPatch(typeof(Sword), "SetMotorSpeed")]
+        public static void OnSetMotorSpeed(ref bool __runOriginal, float speed)
+        {
+            if (NetworkManager.Instance.IsConnected())
+            {
+                if(NetworkManager.Instance.GetLocalPlayer().SteamID == SteamUser.GetSteamID().m_SteamID)
+                {
+                    if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+                    {
+                        if (NetworkManager.Instance.CurrentControlType == ControlType.Player)
+                        {
+                            __runOriginal = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        [HarmonyPrefix]
         [HarmonyPatch(typeof(Sword), "Grow")]
         public static void OnSwordGrow(Sword __instance)
         {
@@ -135,8 +155,7 @@ namespace DSMM.Common
             if (UIManager.Instance.StartMultiplayerButton != null)
                 return;
 
-            UIManager.Instance.CreateMultiplayerButton();
-            UIManager.Instance.CreateMultiplayerSubMenu();
+            UIManager.Instance.Start();
         }
 
         [HarmonyPrefix]
@@ -198,54 +217,55 @@ namespace DSMM.Common
         [HarmonyPatch(typeof(BaseActor), "ControlledFixedUpdate")]
         public static void OnControlledFixedUpdatePrefix(BaseActor __instance, ref bool __runOriginal)
         {
-            if (NetworkManager.Instance.IsConnected())
+            if (!NetworkManager.Instance.IsConnected()) 
+                return;
+
+            if (!ulong.TryParse(__instance.gameObject.transform.parent?.gameObject.name, out ulong steamIDValue)) 
+                return;
+
+            CSteamID steamID = new CSteamID(steamIDValue);
+
+            bool isLocalPlayer = NetworkManager.Instance.GetLocalPlayer().SteamID == steamID.m_SteamID;
+            bool isRemotePlayer = NetworkManager.Instance.IsPlayer(steamID.m_SteamID);
+            bool isCoOpSwordControl = NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.CurrentControlType == ControlType.Sword;
+
+            if (!isLocalPlayer && !isRemotePlayer) 
+                return;
+
+            if (isLocalPlayer && !isCoOpSwordControl) 
+                return;
+
+            __runOriginal = false;
+
+            float velocityMagnitude = NetworkManager.Instance.GetPlayer(steamID.m_SteamID).VelocityMagnitude;
+            var propertyIsGrounded = typeof(BaseActor).GetProperty("_isGrounded", BindingFlags.Instance | BindingFlags.NonPublic);
+            var fieldFallThroughTiles = typeof(BaseActor).GetField("_fallThroughTiles", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            if (propertyIsGrounded == null || fieldFallThroughTiles == null) 
+                return;
+
+            HashSet<Collider2D> collider2Ds = (HashSet<Collider2D>)fieldFallThroughTiles.GetValue(__instance);
+            RaycastHit2D raycastHit = Physics2D.CircleCast(
+                __instance.gameObject.transform.position + Vector3.up * 0.5f, 0.25f, Vector2.down, 0.65f, LayerUtils.DEFAULT_MASK);
+
+            bool wasGrounded = __instance._isGrounded;
+            bool isGrounded = raycastHit.collider != null && !collider2Ds.Contains(raycastHit.collider);
+            propertyIsGrounded.SetValue(__instance, isGrounded);
+
+            if (__instance._animator != null)
             {
-                if (ulong.TryParse(__instance.gameObject.transform.parent.gameObject.name, out ulong steamIDValue))
-                {
-                    CSteamID steamID = new CSteamID(steamIDValue);
+                __instance._animator._isGrounded = isGrounded;
+                __instance._animator.SetMoveSpeed(Mathf.Clamp01(velocityMagnitude / __instance._maxMoveSpeed));
+            }
 
-                    if(NetworkManager.Instance.GetLocalPlayer().SteamID != steamID.m_SteamID)
-                    {
-                        if (!NetworkManager.Instance.IsPlayer(steamID.m_SteamID))
-                            return;
+            if (wasGrounded != isGrounded)
+            {
+                AudioManager.Instance.PlayOneShot(
+                    isGrounded ? __instance._landSfx : __instance._liftSfx,
+                    isGrounded ? __instance._landSfxVolume : __instance._liftSfxVolume);
 
-                        __runOriginal = false;
-
-                        float velocityMagnitud = NetworkManager.Instance.GetPlayer(steamID.m_SteamID).VelocityMagnitude;
-
-                        var propertyIsGrounded = typeof(BaseActor).GetProperty("_isGrounded", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        var fieldFallThroughTiles = typeof(BaseActor).GetField("_fallThroughTiles", BindingFlags.Instance | BindingFlags.NonPublic);
-
-                        HashSet<Collider2D> collider2Ds = (HashSet<Collider2D>)fieldFallThroughTiles.GetValue(__instance);
-
-                        RaycastHit2D raycastHit2D = Physics2D.CircleCast(__instance.gameObject.transform.position + Vector3.up * 0.5f, 0.25f, Vector2.down, 0.65f, LayerUtils.DEFAULT_MASK);
-                        bool isGrounded = __instance._isGrounded;
-                        propertyIsGrounded.SetValue(__instance, raycastHit2D.collider != null && !collider2Ds.Contains(raycastHit2D.collider));
-                        if (__instance._animator != null)
-                        {
-                            __instance._animator._isGrounded = __instance._isGrounded;
-                        }
-
-                        if (isGrounded != __instance._isGrounded)
-                        {
-                            if (__instance._isGrounded)
-                            {
-                                __instance._jumpCount = 0;
-                                AudioManager.Instance.PlayOneShot(__instance._landSfx, __instance._landSfxVolume);
-                            }
-                            else
-                            {
-                                AudioManager.Instance.PlayOneShot(__instance._liftSfx, __instance._liftSfxVolume);
-                            }
-                        }
-
-                        if (__instance._animator != null)
-                        {
-                            float moveSpeed = Mathf.Clamp01(velocityMagnitud / __instance._maxMoveSpeed);
-                            __instance._animator.SetMoveSpeed(moveSpeed);
-                        }
-                    }
-                }
+                if (isGrounded) 
+                    __instance._jumpCount = 0;
             }
         }
     }

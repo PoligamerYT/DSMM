@@ -379,6 +379,8 @@
     <Compile Include="Discord\StorageManager.cs" />
     <Compile Include="Discord\StoreManager.cs" />
     <Compile Include="MultiplayerMod.cs" />
+    <Compile Include="Network\Enums\ControlType.cs" />
+    <Compile Include="Network\Enums\GameMode.cs" />
     <Compile Include="Network\InputBuffer.cs" />
     <Compile Include="Network\Enums\LeaveType.cs" />
     <Compile Include="Network\Enums\SwordChangeType.cs" />

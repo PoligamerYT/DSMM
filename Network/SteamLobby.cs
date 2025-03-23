@@ -72,7 +72,7 @@ namespace DSMM.Network
             if (leaveType == LeaveType.Quit)
                 return;
 
-            DestroyAllPlayers();
+            Utils.DestroyAllPlayers();
 
             DiscordManager.Instance.BackToDefault();
 
@@ -89,6 +89,11 @@ namespace DSMM.Network
         {
             if (callback.m_eResult != EResult.k_EResultOK)
                 return;
+
+            NetworkManager.Instance.CurrentGameMode = UIManager.Instance.GetGameMode();
+
+            if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+                NetworkManager.Instance.CurrentControlType = Utils.GetRandomEnumValue<ControlType>(); 
 
             MultiplayerMod.Instance.Log.LogMessage("Lobby Created Succesfully");
 
@@ -121,7 +126,8 @@ namespace DSMM.Network
             if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                 return;
 
-            Utils.CreatePlayer(Player.m_SteamID);
+            if(NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
+                Utils.CreatePlayer(Player.m_SteamID);
 
             if (NetworkManager.Instance.IsServer && SteamUser.GetSteamID() != Player)
             {
@@ -142,7 +148,8 @@ namespace DSMM.Network
 
             SteamNetworking.CloseP2PSessionWithUser(Player);
 
-            Utils.DestroyPlayer(Player.m_SteamID);
+            if (NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
+                Utils.DestroyPlayer(Player.m_SteamID);
 
             DiscordManager.Instance.UpdateDiscordRichPresenceWithSecret(CurrentLobbyID.ToString());
         }
@@ -227,7 +234,9 @@ namespace DSMM.Network
                     Timestamp = Utils.GetUnixTime(),
                     PlayTime = Main.Instance._playtime,
                     TotalLapTime = Main._totalLapTime,
-                    LapCount = Main._lapCount
+                    LapCount = Main._lapCount,
+                    GameMode = NetworkManager.Instance.CurrentGameMode,
+                    ControlType = NetworkManager.Instance.CurrentControlType == ControlType.Sword ? ControlType.Player : ControlType.Sword
                 };
 
                 NetworkManager.Instance.SendPacketTo(packet, new Player(steamId));
@@ -257,26 +266,6 @@ namespace DSMM.Network
 
                 yield return null;
             }
-        }
-
-        public void DestroyAllPlayers()
-        {
-            foreach (Player player in NetworkManager.Instance.Players)
-            {
-                if(player.SteamID == SteamUser.GetSteamID().m_SteamID)
-                {
-                    GameObject.Destroy(player.GetPlayerController()._playerActor._sprite.transform.GetChild(0).gameObject);
-
-                    GameObject.Find(player.SteamID.ToString()).name = "[PlayerController]";
-                }
-                else
-                {
-                    SteamNetworking.CloseP2PSessionWithUser(new CSteamID(player.SteamID));
-                    Destroy(GameObject.Find(player.SteamID.ToString()));
-                }
-            }
-
-            NetworkManager.Instance.Players.Clear();
         }
 
         private IEnumerator DestroyLobbyAfterFrame()

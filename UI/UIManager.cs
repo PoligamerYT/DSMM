@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
-using Unity.IO.LowLevel.Unsafe;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,6 +23,9 @@ namespace DSMM.UI
         public TextMeshProUGUI LoadingText;
         public GameObject WheelLayout;
         public Image PlayerViewer;
+        public GameObject GameModeLayout;
+        public Toggle VanillaGameModeToggle;
+        public Toggle CoopChaosGameModeToggle;
 
         public static UIManager Instance;
 
@@ -166,6 +168,75 @@ namespace DSMM.UI
 
             InviteFriendsButton.gameObject.SetActive(false);
 
+            GameObject gameModeLayout = new GameObject();
+
+            gameModeLayout.transform.SetParent(layout.transform);
+            gameModeLayout.name = "Game Mode Layout";
+            gameModeLayout.transform.localPosition = Vector3.zero;
+            gameModeLayout.transform.localScale = Vector3.one;
+            gameModeLayout.AddComponent<RectTransform>();
+            gameModeLayout.GetComponent<RectTransform>().sizeDelta = new Vector2(350, 80);
+            gameModeLayout.transform.SetSiblingIndex(2);
+
+            HorizontalLayoutGroup gameModeHorizontalLayout = gameModeLayout.AddComponent<HorizontalLayoutGroup>();
+
+            GameModeLayout = gameModeLayout.gameObject;
+
+            gameModeHorizontalLayout.childForceExpandWidth = false;
+            gameModeHorizontalLayout.childForceExpandHeight = false;
+            gameModeHorizontalLayout.childControlWidth = false;
+            gameModeHorizontalLayout.childControlHeight = false;
+
+            GameObject gameModeObjectText = new GameObject();
+
+            gameModeObjectText.transform.parent = gameModeLayout.transform;
+            gameModeObjectText.name = "Game Mode Text";
+            gameModeObjectText.transform.localPosition = Vector3.zero;
+            gameModeObjectText.transform.localScale = Vector3.one;
+
+            TextMeshProUGUI gameModeText = gameModeObjectText.AddComponent<TextMeshProUGUI>();
+
+            gameModeText.alignment = TextAlignmentOptions.Left;
+            gameModeText.fontSize = 14;
+            gameModeText.text = "GAME MODES";
+
+            GameObject gameModeVerticalLayout = new GameObject();
+
+            gameModeVerticalLayout.transform.parent = gameModeLayout.transform;
+            gameModeVerticalLayout.name = "Game Mode Togles";
+            gameModeVerticalLayout.transform.localPosition = Vector3.zero;
+            gameModeVerticalLayout.transform.localScale = Vector3.one;
+
+            VerticalLayoutGroup gameModeVerticalLayout_ = gameModeVerticalLayout.AddComponent<VerticalLayoutGroup>();
+
+            gameModeVerticalLayout_.childForceExpandWidth = false;
+            gameModeVerticalLayout_.childForceExpandHeight = false;
+            gameModeVerticalLayout_.childControlWidth = false;
+            gameModeVerticalLayout_.childControlHeight = false;
+
+            gameModeVerticalLayout.AddComponent<ToggleGroup>();
+
+            GameObject vanillaMode = Instantiate(FriendsOnlyTogle.transform.parent.gameObject, gameModeVerticalLayout.transform);
+
+            vanillaMode.GetComponent<TextMeshProUGUI>().text = "VANILLA";
+            vanillaMode.transform.GetChild(0).GetComponent<Toggle>().onValueChanged = new Toggle.ToggleEvent();
+            vanillaMode.transform.GetChild(0).GetComponent<Toggle>().group = gameModeVerticalLayout.GetComponent<ToggleGroup>();
+
+            VanillaGameModeToggle = vanillaMode.transform.GetChild(0).GetComponent<Toggle>();
+
+            vanillaMode.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
+            GameObject coopChaosMode = Instantiate(FriendsOnlyTogle.transform.parent.gameObject, gameModeVerticalLayout.transform);
+
+            coopChaosMode.GetComponent<TextMeshProUGUI>().text = "CO-OP CHAOS";
+            coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().onValueChanged = new Toggle.ToggleEvent();
+            coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().isOn = false;
+            coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().group = gameModeVerticalLayout.GetComponent<ToggleGroup>();
+
+            CoopChaosGameModeToggle = coopChaosMode.transform.GetChild(0).GetComponent<Toggle>();
+
+            coopChaosMode.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+
             GameObject stopMultiplaterButton = Instantiate(parent.transform.GetChild(4).GetChild(1).GetChild(6).gameObject, layout.transform);
 
             stopMultiplaterButton.name = "Button - Stop Multiplayer";
@@ -305,6 +376,18 @@ namespace DSMM.UI
             }
         }
 
+        public GameMode GetGameMode()
+        {
+            if (VanillaGameModeToggle.isOn)
+            {
+                return GameMode.Vanilla;
+            }
+            else
+            {
+                return GameMode.CoOpChaos;
+            }
+        }
+
         public void OnClickStartMultiplayerButton()
         {
             Loading();
@@ -319,6 +402,7 @@ namespace DSMM.UI
             StartMultiplayerButton.gameObject.SetActive(false);
             LoadingText.gameObject.SetActive(true);
             CancelMutliplayerButton.gameObject.SetActive(true);
+            GameModeLayout.SetActive(false);
         }
 
         public void OnClickInviteFriendsButton()
@@ -340,6 +424,7 @@ namespace DSMM.UI
             FriendsOnlyTogle.transform.parent.gameObject.SetActive(false);
             LoadingText.gameObject.SetActive(false);
             CancelMutliplayerButton.gameObject.SetActive(false);
+            GameModeLayout.SetActive(false);
 
             Time.timeScale = 1f;
         }
@@ -353,6 +438,7 @@ namespace DSMM.UI
             FriendsOnlyTogle.transform.parent.gameObject.SetActive(true);
             LoadingText.gameObject.SetActive(false);
             CancelMutliplayerButton.gameObject.SetActive(false);
+            GameModeLayout.SetActive(true);
         }
     }
 }
