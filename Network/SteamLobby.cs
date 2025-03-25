@@ -69,10 +69,15 @@ namespace DSMM.Network
 
             NetworkManager.Instance.HaveRecievePrimaryInfo = false;
 
+            NetworkManager.Instance.LastSwordSpeed = float.MaxValue;
+            NetworkManager.Instance.LastMoveDir = float.MaxValue;
+
             if (leaveType == LeaveType.Quit)
                 return;
 
             Utils.DestroyAllPlayers();
+
+            Utils.ResetPlayer();
 
             DiscordManager.Instance.BackToDefault();
 
@@ -92,9 +97,6 @@ namespace DSMM.Network
 
             NetworkManager.Instance.CurrentGameMode = UIManager.Instance.GetGameMode();
 
-            if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
-                NetworkManager.Instance.CurrentControlType = Utils.GetRandomEnumValue<ControlType>(); 
-
             MultiplayerMod.Instance.Log.LogMessage("Lobby Created Succesfully");
 
             SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name", SteamFriends.GetPersonaName().ToString() + "´s LOBBY");
@@ -104,6 +106,16 @@ namespace DSMM.Network
             if (Main.Instance._state == Main.GameState.Title)
             {
                 Main.Instance.StartGame();
+            }
+
+            MultiplayerMod.Instance.Log.LogInfo($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
+
+            if (NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+            {
+                NetworkManager.Instance.CurrentControlType = Utils.GetRandomEnumValue<ControlType>();
+                Utils.CreateProxyPlayer();
+
+                MultiplayerMod.Instance.Log.LogInfo($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
             }
 
             UIManager.Instance.OnEnterLobby();

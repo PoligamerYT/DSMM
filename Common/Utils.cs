@@ -1,4 +1,5 @@
 ﻿using DSMM.Network;
+using DSMM.Network.Enums;
 using Steamworks;
 using System;
 using System.Collections;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
+using Quaternion = UnityEngine.Quaternion;
 using Random = System.Random;
 using Vector3 = DSMM.Math.Vector3;
 
@@ -42,7 +44,7 @@ namespace DSMM.Common
             username.transform.localPosition = new UnityEngine.Vector3(0, 1.5f, 0);
 
             TextMeshPro usernameText = username.AddComponent<TextMeshPro>();
-            usernameText.text = SteamFriends.GetFriendPersonaName(new CSteamID(steamId));
+            usernameText.text = NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos ? NetworkManager.Instance.CurrentControlType.ToString() : SteamFriends.GetFriendPersonaName(new CSteamID(player.SteamID));
             usernameText.alignment = TextAlignmentOptions.Center;
             usernameText.fontSize = 2;
 
@@ -73,7 +75,7 @@ namespace DSMM.Common
             username.transform.localPosition = new UnityEngine.Vector3(0, 1.5f, 0);
 
             TextMeshPro usernameText = username.AddComponent<TextMeshPro>();
-            usernameText.text = SteamFriends.GetFriendPersonaName(new CSteamID(player.SteamID));
+            usernameText.text = NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos ? NetworkManager.Instance.CurrentControlType.ToString() : SteamFriends.GetFriendPersonaName(new CSteamID(player.SteamID));
             usernameText.alignment = TextAlignmentOptions.Center;
             usernameText.fontSize = 2;
 
@@ -101,11 +103,39 @@ namespace DSMM.Common
             username.transform.localPosition = new UnityEngine.Vector3(0, 1.5f, 0);
 
             TextMeshPro usernameText = username.AddComponent<TextMeshPro>();
-            usernameText.text = SteamFriends.GetFriendPersonaName(new CSteamID(player.SteamID));
+            usernameText.text = NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos ? NetworkManager.Instance.CurrentControlType.ToString() : SteamFriends.GetFriendPersonaName(new CSteamID(player.SteamID));
             usernameText.alignment = TextAlignmentOptions.Center;
             usernameText.fontSize = 2;
 
             NetworkManager.Instance.Players.Add(player);
+        }
+
+        public static void CreateProxyPlayer()
+        {
+            PlayerController proxyPlayerController = GameObject.Instantiate(PlayerController.Instance.gameObject).GetComponent<PlayerController>();
+            proxyPlayerController.gameObject.name = "[ProxyPlayerController]";
+            proxyPlayerController._allowControl = true;
+            proxyPlayerController._playerActor._sprite.gameObject.SetActive(false);
+            proxyPlayerController._sword._swordSpriteRenderer.gameObject.SetActive(false);
+
+            PlayerController playerController = PlayerController.Instance;
+
+            playerController._allowControl = false;
+            playerController._playerActor._rigidBody.gravityScale = 0;
+            playerController._playerActor._collider.gameObject.SetActive(false);
+            playerController._sword.gameObject.GetComponent<Rigidbody2D>().gravityScale = 0;
+            playerController._sword._model.gameObject.SetActive(false);
+        }
+
+        public static void ResetPlayer()
+        {
+            PlayerController playerController = PlayerController.Instance;
+
+            playerController._allowControl = true;
+            playerController._playerActor._rigidBody.gravityScale = 1;
+            playerController._playerActor._collider.gameObject.SetActive(true);
+            playerController._sword.gameObject.GetComponent<Rigidbody2D>().gravityScale = 1;
+            playerController._sword._model.gameObject.SetActive(true);
         }
 
         public static double GetUnixTime()
@@ -172,6 +202,9 @@ namespace DSMM.Common
 
         public static void DestroyAllPlayers()
         {
+            if (NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+                GameObject.Destroy(GameObject.Find("[ProxyPlayerController]"));
+
             foreach (Player player in NetworkManager.Instance.Players)
             {
                 if (player.SteamID == SteamUser.GetSteamID().m_SteamID)

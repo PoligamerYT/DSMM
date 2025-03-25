@@ -381,6 +381,7 @@
     <Compile Include="MultiplayerMod.cs" />
     <Compile Include="Network\Enums\ControlType.cs" />
     <Compile Include="Network\Enums\GameMode.cs" />
+    <Compile Include="Network\Enums\PlayerActionType.cs" />
     <Compile Include="Network\InputBuffer.cs" />
     <Compile Include="Network\Enums\LeaveType.cs" />
     <Compile Include="Network\Enums\SwordChangeType.cs" />
@@ -395,6 +396,7 @@
     <Compile Include="Network\Packets\StageChangePacket.cs" />
     <Compile Include="Network\Packets\SwordChangePacket.cs" />
     <Compile Include="Network\Player.cs" />
+    <Compile Include="Network\Packets\PlayerActionPacket.cs" />
     <Compile Include="Network\SteamLobby.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UI\ColorPicker.cs" />

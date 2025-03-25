@@ -51,6 +51,9 @@ namespace DSMM.UI
 
         public void CreateMultiplayerButton()
         {
+            if (MultiplayerButton != null)
+                return;
+
             VerticalLayoutGroup layout = Main.Instance.transform.GetChild(1).GetChild(6).GetChild(2).GetChild(1).GetComponent<VerticalLayoutGroup>();
 
             GameObject multiplayerButton = Instantiate(layout.transform.GetChild(3).gameObject, layout.transform);
@@ -72,6 +75,9 @@ namespace DSMM.UI
 
         public void CreateMultiplayerSubMenu()
         {
+            if (MultiplayerSubMenu != null)
+                return;
+
             GameObject parent = Main.Instance.transform.GetChild(1).GetChild(6).GetChild(1).gameObject;
 
             GameObject multiplayerSubNenu = Instantiate(parent.transform.GetChild(2).gameObject, parent.transform);

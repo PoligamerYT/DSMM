@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using static Main;
 using DSMM.UI;
-using DSMM.Discord;
+using DSMM.Network;
 
 namespace DSMM.Common
 {
@@ -54,6 +54,34 @@ namespace DSMM.Common
                 if(__instance.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                 {
                     __runOriginal = false;
+
+                    if (__instance.gameObject.name == "[ProxyPlayerController]")
+                    {
+                        MethodInfo firstUpdateMethod = typeof(PlayerController).GetMethod("FirstUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+                        MethodInfo updateControllsMethod = typeof(PlayerController).GetMethod("UpdateControls", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                        FieldInfo firstUpdateField = typeof(PlayerController).GetField("_firstUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+                        FieldInfo inputBlockTimerField = typeof(PlayerController).GetField("_inputBlockTimer", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                        if ((bool)firstUpdateField.GetValue(__instance))
+                        {
+                            firstUpdateMethod.Invoke(__instance, null);
+                        }
+
+                        if (!PauseButtonUI.Instance._isPaused)
+                        {
+                            if ((float)inputBlockTimerField.GetValue(__instance) > 0f)
+                            {
+                                float currentValue = (float)inputBlockTimerField.GetValue(__instance);
+                                currentValue -= Time.deltaTime;
+                                inputBlockTimerField.SetValue(__instance, currentValue);
+                            }
+                            else if (__instance._playerActor._isAlive)
+                            {
+                                updateControllsMethod.Invoke(__instance, null);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -67,31 +95,87 @@ namespace DSMM.Common
                 if (__instance.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                     return;
 
-                PlayerTeleportPacket packet = new PlayerTeleportPacket
+                if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.IsServer)
                 {
-                    Position = new Math.Vector3(pos)
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>().TeleportPlayer(pos);
+                }
+                else
+                {
+                    PlayerTeleportPacket packet = new PlayerTeleportPacket
+                    {
+                        Position = new Math.Vector3(pos)
+                    };
+
+                    NetworkManager.Instance.SendPacketToAll(packet);
+                }
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(BaseActor), "Move")]
+        public static void OnMove(BaseActor __instance, ref bool __runOriginal, float dir)
+        {
+            if (NetworkManager.Instance.IsApplyingRemoteAction)
+                return;
+
+            if (!NetworkManager.Instance.IsConnected() || NetworkManager.Instance.CurrentGameMode != GameMode.CoOpChaos)
+                return;
+
+            if (NetworkManager.Instance.CurrentControlType == ControlType.Sword)
+            {
+                __runOriginal = false;
+            }
+            else
+            {
+                if (__instance.transform.root.gameObject.name != "[ProxyPlayerController]")
+                    __runOriginal = false;
+
+                if (NetworkManager.Instance.IsServer || dir == NetworkManager.Instance.LastMoveDir)
+                    return;
+
+                PlayerActionPacket packet = new PlayerActionPacket
+                {
+                    ActionType = PlayerActionType.PlayerMovement,
+                    ActionValue = dir
                 };
 
-                NetworkManager.Instance.SendPacketToAll(packet);
+                NetworkManager.Instance.SendPacketTo(packet, new Player(NetworkManager.Instance.GetLobbyOwner()), EP2PSend.k_EP2PSendUnreliableNoDelay);
+
+                NetworkManager.Instance.LastMoveDir = dir;
             }
         }
 
         [HarmonyPrefix]
         [HarmonyPatch(typeof(Sword), "SetMotorSpeed")]
-        public static void OnSetMotorSpeed(ref bool __runOriginal, float speed)
+        public static void OnSetMotorSpeed(Sword __instance, ref bool __runOriginal, float speed)
         {
-            if (NetworkManager.Instance.IsConnected())
+            if (NetworkManager.Instance.IsApplyingRemoteAction)
+                return;
+
+            if (!NetworkManager.Instance.IsConnected() || NetworkManager.Instance.CurrentGameMode != GameMode.CoOpChaos)
+                return;
+
+            if (NetworkManager.Instance.CurrentControlType == ControlType.Player)
             {
-                if(NetworkManager.Instance.GetLocalPlayer().SteamID == SteamUser.GetSteamID().m_SteamID)
+                __runOriginal = false;
+            }
+            else
+            {
+                if (__instance.transform.root.gameObject.name != "[ProxyPlayerController]")
+                    __runOriginal = false;
+
+                if (NetworkManager.Instance.IsServer || speed == NetworkManager.Instance.LastSwordSpeed)
+                    return;
+
+                PlayerActionPacket packet = new PlayerActionPacket
                 {
-                    if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
-                    {
-                        if (NetworkManager.Instance.CurrentControlType == ControlType.Player)
-                        {
-                            __runOriginal = false;
-                        }
-                    }
-                }
+                    ActionType = PlayerActionType.SwordMovement,
+                    ActionValue = speed
+                };
+
+                NetworkManager.Instance.SendPacketTo(packet, new Player(NetworkManager.Instance.GetLobbyOwner()), EP2PSend.k_EP2PSendUnreliableNoDelay);
+
+                NetworkManager.Instance.LastSwordSpeed = speed;
             }
         }
 
@@ -104,15 +188,25 @@ namespace DSMM.Common
                 if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                     return;
 
-                if (__instance.transform.parent.parent.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
+                if (__instance.transform.root.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                     return;
 
-                SwordChangePacket packet = new SwordChangePacket
+                if(NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
                 {
-                    SwordChangeType = SwordChangeType.Grow
-                };
+                    SwordChangePacket packet = new SwordChangePacket
+                    {
+                        SwordChangeType = SwordChangeType.Grow
+                    };
 
-                NetworkManager.Instance.SendPacketToAll(packet);
+                    NetworkManager.Instance.SendPacketToAll(packet);
+                }
+                else
+                {
+                    if (NetworkManager.Instance.IsCLient)
+                        return;
+
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>()._sword.Grow();
+                }
             }
         }
 
@@ -125,15 +219,25 @@ namespace DSMM.Common
                 if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                     return;
 
-                if (__instance.transform.parent.parent.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
+                if (__instance.transform.root.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                     return;
 
-                SwordChangePacket packet = new SwordChangePacket
+                if (NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
                 {
-                    SwordChangeType = SwordChangeType.Shrink
-                };
+                    SwordChangePacket packet = new SwordChangePacket
+                    {
+                        SwordChangeType = SwordChangeType.Shrink
+                    };
 
-                NetworkManager.Instance.SendPacketToAll(packet);
+                    NetworkManager.Instance.SendPacketToAll(packet);
+                }
+                else
+                {
+                    if (NetworkManager.Instance.IsCLient)
+                        return;
+
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>()._sword.Shrink();
+                }
             }
         }
 
@@ -217,55 +321,57 @@ namespace DSMM.Common
         [HarmonyPatch(typeof(BaseActor), "ControlledFixedUpdate")]
         public static void OnControlledFixedUpdatePrefix(BaseActor __instance, ref bool __runOriginal)
         {
-            if (!NetworkManager.Instance.IsConnected()) 
-                return;
-
-            if (!ulong.TryParse(__instance.gameObject.transform.parent?.gameObject.name, out ulong steamIDValue)) 
-                return;
-
-            CSteamID steamID = new CSteamID(steamIDValue);
-
-            bool isLocalPlayer = NetworkManager.Instance.GetLocalPlayer().SteamID == steamID.m_SteamID;
-            bool isRemotePlayer = NetworkManager.Instance.IsPlayer(steamID.m_SteamID);
-            bool isCoOpSwordControl = NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.CurrentControlType == ControlType.Sword;
-
-            if (!isLocalPlayer && !isRemotePlayer) 
-                return;
-
-            if (isLocalPlayer && !isCoOpSwordControl) 
-                return;
-
-            __runOriginal = false;
-
-            float velocityMagnitude = NetworkManager.Instance.GetPlayer(steamID.m_SteamID).VelocityMagnitude;
-            var propertyIsGrounded = typeof(BaseActor).GetProperty("_isGrounded", BindingFlags.Instance | BindingFlags.NonPublic);
-            var fieldFallThroughTiles = typeof(BaseActor).GetField("_fallThroughTiles", BindingFlags.Instance | BindingFlags.NonPublic);
-
-            if (propertyIsGrounded == null || fieldFallThroughTiles == null) 
-                return;
-
-            HashSet<Collider2D> collider2Ds = (HashSet<Collider2D>)fieldFallThroughTiles.GetValue(__instance);
-            RaycastHit2D raycastHit = Physics2D.CircleCast(
-                __instance.gameObject.transform.position + Vector3.up * 0.5f, 0.25f, Vector2.down, 0.65f, LayerUtils.DEFAULT_MASK);
-
-            bool wasGrounded = __instance._isGrounded;
-            bool isGrounded = raycastHit.collider != null && !collider2Ds.Contains(raycastHit.collider);
-            propertyIsGrounded.SetValue(__instance, isGrounded);
-
-            if (__instance._animator != null)
+            if (NetworkManager.Instance.IsConnected())
             {
-                __instance._animator._isGrounded = isGrounded;
-                __instance._animator.SetMoveSpeed(Mathf.Clamp01(velocityMagnitude / __instance._maxMoveSpeed));
-            }
+                if (NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+                    return;
 
-            if (wasGrounded != isGrounded)
-            {
-                AudioManager.Instance.PlayOneShot(
-                    isGrounded ? __instance._landSfx : __instance._liftSfx,
-                    isGrounded ? __instance._landSfxVolume : __instance._liftSfxVolume);
+                if (ulong.TryParse(__instance.gameObject.transform.parent.gameObject.name, out ulong steamIDValue))
+                {
+                    CSteamID steamID = new CSteamID(steamIDValue);
 
-                if (isGrounded) 
-                    __instance._jumpCount = 0;
+                    if (NetworkManager.Instance.GetLocalPlayer().SteamID != steamID.m_SteamID)
+                    {
+                        if (!NetworkManager.Instance.IsPlayer(steamID.m_SteamID))
+                            return;
+
+                        __runOriginal = false;
+
+                        float velocityMagnitud = NetworkManager.Instance.GetPlayer(steamID.m_SteamID).VelocityMagnitude;
+
+                        var propertyIsGrounded = typeof(BaseActor).GetProperty("_isGrounded", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        var fieldFallThroughTiles = typeof(BaseActor).GetField("_fallThroughTiles", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                        HashSet<Collider2D> collider2Ds = (HashSet<Collider2D>)fieldFallThroughTiles.GetValue(__instance);
+
+                        RaycastHit2D raycastHit2D = Physics2D.CircleCast(__instance.gameObject.transform.position + Vector3.up * 0.5f, 0.25f, Vector2.down, 0.65f, LayerUtils.DEFAULT_MASK);
+                        bool isGrounded = __instance._isGrounded;
+                        propertyIsGrounded.SetValue(__instance, raycastHit2D.collider != null && !collider2Ds.Contains(raycastHit2D.collider));
+                        if (__instance._animator != null)
+                        {
+                            __instance._animator._isGrounded = __instance._isGrounded;
+                        }
+
+                        if (isGrounded != __instance._isGrounded)
+                        {
+                            if (__instance._isGrounded)
+                            {
+                                __instance._jumpCount = 0;
+                                AudioManager.Instance.PlayOneShot(__instance._landSfx, __instance._landSfxVolume);
+                            }
+                            else
+                            {
+                                AudioManager.Instance.PlayOneShot(__instance._liftSfx, __instance._liftSfxVolume);
+                            }
+                        }
+
+                        if (__instance._animator != null)
+                        {
+                            float moveSpeed = Mathf.Clamp01(velocityMagnitud / __instance._maxMoveSpeed);
+                            __instance._animator.SetMoveSpeed(moveSpeed);
+                        }
+                    }
+                }
             }
         }
     }
