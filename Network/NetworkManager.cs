@@ -127,6 +127,24 @@ namespace DSMM.Network
             PacketHandler.Packets.Add(typeof(SwordChangePacket), OnSwordChange);
             PacketHandler.Packets.Add(typeof(RestartGamePacket), OnRestartGame);
             PacketHandler.Packets.Add(typeof(PlayerActionPacket), OnPlayerActionPacket);
+            PacketHandler.Packets.Add(typeof(CheckPointPacket), OnCheckPoint);
+        }
+
+        public void OnCheckPoint(Player sender, object obj)
+        {
+            CheckPointPacket packet = (CheckPointPacket)obj;
+
+            switch (packet.Mode)
+            {
+                case CheckPointMode.Return:
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>().ReturnToCheckPoint();
+                    break;
+                case CheckPointMode.Trigger:
+                    CheckPointTrigger trigger = GameObject.FindObjectsOfType<CheckPointTrigger>().Where(x => x.transform.position == packet.Location.GetVector3()).FirstOrDefault();
+
+                    trigger.Activate();
+                    break;
+            }
         }
 
         private void OnPlayerActionPacket(Player sender, object obj)
@@ -192,10 +210,12 @@ namespace DSMM.Network
         {
             PlayerTeleportPacket packet = (PlayerTeleportPacket)obj;
 
-            sender.GetPlayerController()._playerActor._rigidBody.bodyType = RigidbodyType2D.Dynamic;
-            sender.GetPlayerController()._playerActor.transform.localScale = UnityEngine.Vector3.one;
-            sender.GetPlayerController()._playerActor.transform.position = packet.Position.GetVector3();
-            sender.GetPlayerController()._sword.transform.rotation = Quaternion.identity;
+            PlayerController controller = CurrentGameMode == GameMode.Vanilla ? sender.GetPlayerController() : PlayerController.Instance;
+
+            controller._playerActor._rigidBody.bodyType = RigidbodyType2D.Dynamic;
+            controller._playerActor.transform.localScale = UnityEngine.Vector3.one;
+            controller._playerActor.transform.position = packet.Position.GetVector3();
+            controller._sword.transform.rotation = Quaternion.identity;
         }
 
         private void OnStageChangePacket(Player sender, object obj)
@@ -251,7 +271,7 @@ namespace DSMM.Network
         {
             PrimaryInfoPacket Packet = (PrimaryInfoPacket)obj;
 
-            if (HaveRecievePrimaryInfo)
+            if (HaveRecievePrimaryInfo || IsServer)
                 return;
 
             MultiplayerMod.Instance.Log.LogMessage("Primary Info Recieve!");
@@ -288,8 +308,8 @@ namespace DSMM.Network
             Main._totalLapTime = Packet.TotalLapTime + (float)(Utils.GetUnixTime() - Packet.Timestamp);
             Main._lapCount = Packet.LapCount;
 
-            MultiplayerMod.Instance.Log.LogInfo($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
-            MultiplayerMod.Instance.Log.LogInfo($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
+            MultiplayerMod.Instance.Log.LogMessage($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
+            MultiplayerMod.Instance.Log.LogMessage($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
         }
 
         private void OnPlayerPosition(Player sender, object obj)

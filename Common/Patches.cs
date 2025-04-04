@@ -83,6 +83,18 @@ namespace DSMM.Common
                         }
                     }
                 }
+                else
+                {
+                    if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.IsServer)
+                    {
+                        __runOriginal = false;
+
+                        if (Input.GetKeyDown(KeyCode.Escape))
+                        {
+                            PauseButtonUI.Instance.Toggle();
+                        }
+                    }
+                }
             }
         }
 
@@ -99,7 +111,7 @@ namespace DSMM.Common
                 {
                     GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>().TeleportPlayer(pos);
                 }
-                else
+                else if(NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
                 {
                     PlayerTeleportPacket packet = new PlayerTeleportPacket
                     {
@@ -372,6 +384,58 @@ namespace DSMM.Common
                         }
                     }
                 }
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(CheckPointTrigger), "OnTriggerEnter2D")]
+        public static void OnTriggerEnter2D(CheckPointTrigger __instance, ref bool __runOriginal, Collider2D collision)
+        {
+            if (NetworkManager.Instance.IsConnected() && NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+            {
+                __runOriginal = false;
+
+                if (!(CheckPointTrigger.s_activeCheckPoint == __instance))
+                {
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>()._checkPointPos = __instance.transform.position;
+                    if (__instance._isStart && !__instance._startSfxSkipComplete)
+                    {
+                        __instance._startSfxSkipComplete = true;
+                    }
+                    else
+                    {
+                        AudioManager.Instance.PlayOneShot(__instance._sfx, __instance._sfxVolume);
+                    }
+
+                    CheckPointTrigger.s_activeCheckPoint?.Deactivate();
+                    CheckPointTrigger.s_activeCheckPoint = __instance;
+                    ParticleSystem.EmissionModule emission = __instance._particleSystem.emission;
+                    emission.enabled = true;
+                    __instance._particleSystem.Emit(4);
+                }
+
+                CheckPointPacket packet = new CheckPointPacket
+                {
+                    Mode = CheckPointMode.Trigger,
+                    Location = new Math.Vector3(__instance.transform.position)
+                };
+
+                NetworkManager.Instance.SendPacketToAll(packet);
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(PlayerController), "ReturnToCheckPoint")]
+        public static void OnReturnToCheckPoint()
+        {
+            if (NetworkManager.Instance.IsConnected() && NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.IsCLient)
+            {
+                CheckPointPacket packet = new CheckPointPacket
+                {
+                    Mode = CheckPointMode.Return
+                };
+
+                NetworkManager.Instance.SendPacketToAll(packet);
             }
         }
     }

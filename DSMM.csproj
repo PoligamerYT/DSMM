@@ -379,6 +379,7 @@
     <Compile Include="Discord\StorageManager.cs" />
     <Compile Include="Discord\StoreManager.cs" />
     <Compile Include="MultiplayerMod.cs" />
+    <Compile Include="Network\Enums\CheckPointMode.cs" />
     <Compile Include="Network\Enums\ControlType.cs" />
     <Compile Include="Network\Enums\GameMode.cs" />
     <Compile Include="Network\Enums\PlayerActionType.cs" />
@@ -387,6 +388,7 @@
     <Compile Include="Network\Enums\SwordChangeType.cs" />
     <Compile Include="Network\NetworkManager.cs" />
     <Compile Include="Network\PacketHandler.cs" />
+    <Compile Include="Network\Packets\CheckPointPacket.cs" />
     <Compile Include="Network\Packets\HostLeavePacket.cs" />
     <Compile Include="Network\Packets\Packet.cs" />
     <Compile Include="Network\Packets\PlayerPositionPacket.cs" />
