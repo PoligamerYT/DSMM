@@ -274,7 +274,7 @@ namespace DSMM.Network
             if (HaveRecievePrimaryInfo || IsServer)
                 return;
 
-            MultiplayerMod.Instance.Log.LogMessage("Primary Info Recieve!");
+            MultiplayerMod.Instance.Logger.LogMessage("Primary Info Recieve!");
 
             StageManager.Instance.SetStage(Packet.Stage);
 
@@ -308,8 +308,8 @@ namespace DSMM.Network
             Main._totalLapTime = Packet.TotalLapTime + (float)(Utils.GetUnixTime() - Packet.Timestamp);
             Main._lapCount = Packet.LapCount;
 
-            MultiplayerMod.Instance.Log.LogMessage($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
-            MultiplayerMod.Instance.Log.LogMessage($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
+            MultiplayerMod.Instance.Logger.LogMessage($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
+            MultiplayerMod.Instance.Logger.LogMessage($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
         }
 
         private void OnPlayerPosition(Player sender, object obj)

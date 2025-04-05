@@ -16,13 +16,13 @@ namespace DSMM
 
         public static MultiplayerMod Instance;
         
-        public ManualLogSource Log;
+        public new ManualLogSource Logger;
 
         public Harmony Harmony;
 
         public void Start()
         {
-            Log = Logger;
+            Logger = base.Logger;
 
             InitHarmony();
 

@@ -62,7 +62,7 @@ namespace DSMM.Network
                 SteamMatchmaking.LeaveLobby(CurrentLobbyID);
             }
 
-            MultiplayerMod.Instance.Log.LogMessage("Leaving Lobby! Reason: " + leaveType);
+            MultiplayerMod.Instance.Logger.LogMessage("Leaving Lobby! Reason: " + leaveType);
 
             NetworkManager.Instance.IsCLient = false;
             NetworkManager.Instance.IsServer = false;
@@ -97,7 +97,7 @@ namespace DSMM.Network
 
             NetworkManager.Instance.CurrentGameMode = UIManager.Instance.GetGameMode();
 
-            MultiplayerMod.Instance.Log.LogMessage("Lobby Created Succesfully");
+            MultiplayerMod.Instance.Logger.LogMessage("Lobby Created Succesfully");
 
             SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name", SteamFriends.GetPersonaName().ToString() + "´s LOBBY");
 
@@ -108,14 +108,14 @@ namespace DSMM.Network
                 Main.Instance.StartGame();
             }
 
-            MultiplayerMod.Instance.Log.LogInfo($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
+            MultiplayerMod.Instance.Logger.LogInfo($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
 
             if (NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
             {
                 NetworkManager.Instance.CurrentControlType = Utils.GetRandomEnumValue<ControlType>();
                 Utils.CreateProxyPlayer();
 
-                MultiplayerMod.Instance.Log.LogInfo($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
+                MultiplayerMod.Instance.Logger.LogInfo($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
             }
 
             UIManager.Instance.OnEnterLobby();
@@ -127,13 +127,13 @@ namespace DSMM.Network
 
             UIManager.Instance.GetPauseScreenUI().ShowSubmenu(4);
 
-            MultiplayerMod.Instance.Log.LogMessage("Request To Join Lobby");
+            MultiplayerMod.Instance.Logger.LogMessage("Request To Join Lobby");
             SteamMatchmaking.JoinLobby(callback.m_steamIDLobby);
         }
 
         private void OnPlayerJoin(CSteamID Player)
         {
-            MultiplayerMod.Instance.Log.LogMessage("New player joined: " + SteamFriends.GetFriendPersonaName(Player));
+            MultiplayerMod.Instance.Logger.LogMessage("New player joined: " + SteamFriends.GetFriendPersonaName(Player));
 
             if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                 return;
@@ -156,7 +156,7 @@ namespace DSMM.Network
                 LeaveLobby();
             }
 
-            MultiplayerMod.Instance.Log.LogMessage("Player left: " + SteamFriends.GetFriendPersonaName(Player));
+            MultiplayerMod.Instance.Logger.LogMessage("Player left: " + SteamFriends.GetFriendPersonaName(Player));
 
             SteamNetworking.CloseP2PSessionWithUser(Player);
 
@@ -184,10 +184,8 @@ namespace DSMM.Network
 
         private void OnP2PSessionRequest(P2PSessionRequest_t pCallback)
         {
-            var lobbyMembers = GetLobbyMembers();
-
             SteamNetworking.AcceptP2PSessionWithUser(pCallback.m_steamIDRemote);
-            MultiplayerMod.Instance.Log.LogMessage($"Accepted P2P request from: {pCallback.m_steamIDRemote}");
+            MultiplayerMod.Instance.Logger.LogMessage($"Accepted P2P request from: {pCallback.m_steamIDRemote}");
         }
 
         public List<CSteamID> GetLobbyMembers()
@@ -233,7 +231,7 @@ namespace DSMM.Network
 
         IEnumerator SendPrimaryInfo(ulong steamId)
         {
-            MultiplayerMod.Instance.Log.LogMessage($"Primary Info Send to: {steamId}!");
+            MultiplayerMod.Instance.Logger.LogMessage($"Primary Info Send to: {steamId}!");
 
             for (int i = 0; i < 5; i++)
             {
