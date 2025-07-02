@@ -76,7 +76,7 @@ If you want to enable enhanced features such as **Discord Invite System & Better
 Need help or found a bug? We’ve got your back.
 
 - 🛠️ [Report Issue](https://github.com/PoligamerYT/DSMM/issues)
-- 💬 Join the [Discord Server](https://discord.gg/Tv9BKZ8N) for support
+- 💬 Join the [Discord Server](https://discord.gg/TNfsDfQFWB) for support
 
 ---
 
