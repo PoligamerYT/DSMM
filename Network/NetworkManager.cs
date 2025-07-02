@@ -188,6 +188,10 @@ namespace DSMM.Network
                 Fader.Instance.gameObject.SetActive(false);
                 Main.Instance._winScreen.SetActive(false);
                 Main.Instance._gameHUD.Show(true);
+                foreach(SwordTrigger swordTrigger in FindObjectsOfType<SwordTrigger>())
+                {
+                    swordTrigger._activated = false;
+                }
             });
         }
 
@@ -318,25 +322,19 @@ namespace DSMM.Network
             {
                 PlayerPositionPacket packet = (PlayerPositionPacket)obj;
 
+                PlayerController controller = CurrentGameMode == GameMode.Vanilla ? PlayerController.Instance : sender.GetPlayerController();
+
+                StartCoroutine(Utils.LerpPosition(controller._playerActor.gameObject.transform, packet.PlayerPosition, 100f));
+                StartCoroutine(Utils.LerpPosition(controller._sword.gameObject.transform, packet.SwordPosition, 100f));
+                StartCoroutine(Utils.LerpRotation(controller._sword.gameObject.transform, new Vector3(0, 0, packet.SwordRotation), 100f));
+
                 switch (CurrentGameMode)
                 {
                     case GameMode.Vanilla:
-                        PlayerController controller = sender.GetPlayerController();
-
-                        StartCoroutine(Utils.LerpPosition(controller._playerActor.gameObject.transform, packet.PlayerPosition, 100f));
-                        StartCoroutine(Utils.LerpPosition(controller._sword.gameObject.transform, packet.SwordPosition, 100f));
-                        StartCoroutine(Utils.LerpRotation(controller._sword.gameObject.transform, new Vector3(0, 0, packet.SwordRotation), 100f));
-
                         controller._playerActor.Move(packet.MoveDirection);
                         sender.VelocityMagnitude = packet.VelocityMagnitude;
                         break;
                     case GameMode.CoOpChaos:
-                        controller = PlayerController.Instance;
-
-                        StartCoroutine(Utils.LerpPosition(controller._playerActor.gameObject.transform, packet.PlayerPosition, 100f));
-                        StartCoroutine(Utils.LerpPosition(controller._sword.gameObject.transform, packet.SwordPosition, 100f));
-                        StartCoroutine(Utils.LerpRotation(controller._sword.gameObject.transform, new Vector3(0, 0, packet.SwordRotation), 100f));
-
                         IsApplyingRemoteAction = true;
 
                         controller._playerActor.Move(packet.MoveDirection);

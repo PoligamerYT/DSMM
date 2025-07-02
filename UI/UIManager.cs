@@ -26,6 +26,7 @@ namespace DSMM.UI
         public GameObject GameModeLayout;
         public Toggle VanillaGameModeToggle;
         public Toggle CoopChaosGameModeToggle;
+        public Slider MaxPlayersSlider;
 
         public static UIManager Instance;
 
@@ -106,6 +107,8 @@ namespace DSMM.UI
             sliderMaxPlayers.onValueChanged = new Slider.SliderEvent();
 
             sliderMaxPlayers.onValueChanged.AddListener(OnPlayersSliderChange);
+
+            MaxPlayersSlider = sliderMaxPlayers;
 
             Destroy(layout.transform.GetChild(1).gameObject);
 
@@ -236,6 +239,9 @@ namespace DSMM.UI
 
             coopChaosMode.GetComponent<TextMeshProUGUI>().text = "CO-OP CHAOS";
             coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().onValueChanged = new Toggle.ToggleEvent();
+            coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().onValueChanged.AddListener(delegate {
+                OnCoOpChaosToggleChange(coopChaosMode.transform.GetChild(0).GetComponent<Toggle>());
+            });
             coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().isOn = false;
             coopChaosMode.transform.GetChild(0).GetComponent<Toggle>().group = gameModeVerticalLayout.GetComponent<ToggleGroup>();
 
@@ -391,6 +397,22 @@ namespace DSMM.UI
             else
             {
                 return GameMode.CoOpChaos;
+            }
+        }
+
+        public void OnCoOpChaosToggleChange(Toggle toggle)
+        {
+            if (toggle.isOn)
+            {
+                MaxPlayersText.text = "PLAYERS: " + 2;
+                NetworkManager.Instance.MaxPlayers = 2;
+                MaxPlayersSlider.gameObject.SetActive(false);
+            }
+            else
+            {
+                MaxPlayersText.text = "PLAYERS: " + 5;
+                NetworkManager.Instance.MaxPlayers = 5;
+                MaxPlayersSlider.gameObject.SetActive(true);
             }
         }
 
