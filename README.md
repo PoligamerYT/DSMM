@@ -8,6 +8,23 @@ Bring your sword (and your friends)! This mod adds **multiplayer functionality**
 - 📍 Player nameplates
 - 🔄 Full movement and animation sync
 - 🧠 Host & Join system
+- 🧩 Game Modes: Vanilla & Co-op Chaos
+
+---
+
+## 🕹️ Game Modes
+
+### ⚔️ Vanilla
+
+Just like the original game, but now with friends. Everyone has their own sword, their own body, and their own bad decisions.
+
+### 🤪 Co-op Chaos
+
+One player controls the **movement**, the other controls the **sword**. Work together (or against each other) to get as deep as possible.
+
+> Yes, it’s as chaotic as it sounds.
+
+You can choose your game mode when hosting a lobby.
 
 ---
 
@@ -15,10 +32,10 @@ Bring your sword (and your friends)! This mod adds **multiplayer functionality**
 
 ### Requirements
 
-- ✅ Deepest Sword (latest version)
-- ✅ BepInEx
-- ✅ Discord Game SDK (optional)
-- ✅ Internet connection
+* ✅ Deepest Sword (latest version)
+* ✅ BepInEx
+* ✅ Discord Game SDK (optional)
+* ✅ Internet connection
 
 ### Steps:
 
