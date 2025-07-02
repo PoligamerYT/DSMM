@@ -50,7 +50,7 @@ If you want to enable enhanced features such as **Discord Invite System & Better
 
 📺 **YouTube Showcase:** [Watch Multiplayer Gameplay](https://youtu.be/g6UjxL0k6AQ?si=IFT97z02afoADvMh&t=134)  
 📷 **Screenshot:**  
-![screenshot1](https://media.discordapp.net/attachments/1049846646848114768/1346752741753749534/20250305024944_1.jpg?ex=67e066fb&is=67df157b&hm=dc1c72e083e84f0194559156fa8ee5d4b99e2f0b30eb034c5e02fa251878492b&=&format=webp&width=1232&height=672)
+![screenshot1](https://i.imgur.com/iwxqwC4.jpeg)
 
 ---
 
