@@ -62,17 +62,22 @@ namespace DSMM.Network
                 SteamMatchmaking.LeaveLobby(CurrentLobbyID);
             }
 
-            MultiplayerMod.Instance.Log.LogMessage("Leaving Lobby! Reason: " + leaveType);
+            MultiplayerMod.Instance.Logger.LogMessage("Leaving Lobby! Reason: " + leaveType);
 
             NetworkManager.Instance.IsCLient = false;
             NetworkManager.Instance.IsServer = false;
 
             NetworkManager.Instance.HaveRecievePrimaryInfo = false;
 
+            NetworkManager.Instance.LastSwordSpeed = float.MaxValue;
+            NetworkManager.Instance.LastMoveDir = float.MaxValue;
+
             if (leaveType == LeaveType.Quit)
                 return;
 
-            DestroyAllPlayers();
+            Utils.DestroyAllPlayers();
+
+            Utils.ResetPlayer();
 
             DiscordManager.Instance.BackToDefault();
 
@@ -90,7 +95,9 @@ namespace DSMM.Network
             if (callback.m_eResult != EResult.k_EResultOK)
                 return;
 
-            MultiplayerMod.Instance.Log.LogMessage("Lobby Created Succesfully");
+            NetworkManager.Instance.CurrentGameMode = UIManager.Instance.GetGameMode();
+
+            MultiplayerMod.Instance.Logger.LogMessage("Lobby Created Succesfully");
 
             SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name", SteamFriends.GetPersonaName().ToString() + "´s LOBBY");
 
@@ -99,6 +106,16 @@ namespace DSMM.Network
             if (Main.Instance._state == Main.GameState.Title)
             {
                 Main.Instance.StartGame();
+            }
+
+            MultiplayerMod.Instance.Logger.LogInfo($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
+
+            if (NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+            {
+                NetworkManager.Instance.CurrentControlType = Utils.GetRandomEnumValue<ControlType>();
+                Utils.CreateProxyPlayer();
+
+                MultiplayerMod.Instance.Logger.LogInfo($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
             }
 
             UIManager.Instance.OnEnterLobby();
@@ -110,18 +127,19 @@ namespace DSMM.Network
 
             UIManager.Instance.GetPauseScreenUI().ShowSubmenu(4);
 
-            MultiplayerMod.Instance.Log.LogMessage("Request To Join Lobby");
+            MultiplayerMod.Instance.Logger.LogMessage("Request To Join Lobby");
             SteamMatchmaking.JoinLobby(callback.m_steamIDLobby);
         }
 
         private void OnPlayerJoin(CSteamID Player)
         {
-            MultiplayerMod.Instance.Log.LogMessage("New player joined: " + SteamFriends.GetFriendPersonaName(Player));
+            MultiplayerMod.Instance.Logger.LogMessage("New player joined: " + SteamFriends.GetFriendPersonaName(Player));
 
             if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                 return;
 
-            Utils.CreatePlayer(Player.m_SteamID);
+            if(NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
+                Utils.CreatePlayer(Player.m_SteamID);
 
             if (NetworkManager.Instance.IsServer && SteamUser.GetSteamID() != Player)
             {
@@ -138,11 +156,12 @@ namespace DSMM.Network
                 LeaveLobby();
             }
 
-            MultiplayerMod.Instance.Log.LogMessage("Player left: " + SteamFriends.GetFriendPersonaName(Player));
+            MultiplayerMod.Instance.Logger.LogMessage("Player left: " + SteamFriends.GetFriendPersonaName(Player));
 
             SteamNetworking.CloseP2PSessionWithUser(Player);
 
-            Utils.DestroyPlayer(Player.m_SteamID);
+            if (NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
+                Utils.DestroyPlayer(Player.m_SteamID);
 
             DiscordManager.Instance.UpdateDiscordRichPresenceWithSecret(CurrentLobbyID.ToString());
         }
@@ -165,10 +184,8 @@ namespace DSMM.Network
 
         private void OnP2PSessionRequest(P2PSessionRequest_t pCallback)
         {
-            var lobbyMembers = GetLobbyMembers();
-
             SteamNetworking.AcceptP2PSessionWithUser(pCallback.m_steamIDRemote);
-            MultiplayerMod.Instance.Log.LogMessage($"Accepted P2P request from: {pCallback.m_steamIDRemote}");
+            MultiplayerMod.Instance.Logger.LogMessage($"Accepted P2P request from: {pCallback.m_steamIDRemote}");
         }
 
         public List<CSteamID> GetLobbyMembers()
@@ -214,7 +231,7 @@ namespace DSMM.Network
 
         IEnumerator SendPrimaryInfo(ulong steamId)
         {
-            MultiplayerMod.Instance.Log.LogMessage($"Primary Info Send to: {steamId}!");
+            MultiplayerMod.Instance.Logger.LogMessage($"Primary Info Send to: {steamId}!");
 
             for (int i = 0; i < 5; i++)
             {
@@ -227,7 +244,9 @@ namespace DSMM.Network
                     Timestamp = Utils.GetUnixTime(),
                     PlayTime = Main.Instance._playtime,
                     TotalLapTime = Main._totalLapTime,
-                    LapCount = Main._lapCount
+                    LapCount = Main._lapCount,
+                    GameMode = NetworkManager.Instance.CurrentGameMode,
+                    ControlType = NetworkManager.Instance.CurrentControlType == ControlType.Sword ? ControlType.Player : ControlType.Sword
                 };
 
                 NetworkManager.Instance.SendPacketTo(packet, new Player(steamId));
@@ -257,26 +276,6 @@ namespace DSMM.Network
 
                 yield return null;
             }
-        }
-
-        public void DestroyAllPlayers()
-        {
-            foreach (Player player in NetworkManager.Instance.Players)
-            {
-                if(player.SteamID == SteamUser.GetSteamID().m_SteamID)
-                {
-                    GameObject.Destroy(player.GetPlayerController()._playerActor._sprite.transform.GetChild(0).gameObject);
-
-                    GameObject.Find(player.SteamID.ToString()).name = "[PlayerController]";
-                }
-                else
-                {
-                    SteamNetworking.CloseP2PSessionWithUser(new CSteamID(player.SteamID));
-                    Destroy(GameObject.Find(player.SteamID.ToString()));
-                }
-            }
-
-            NetworkManager.Instance.Players.Clear();
         }
 
         private IEnumerator DestroyLobbyAfterFrame()

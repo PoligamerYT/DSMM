@@ -1,15 +1,14 @@
-﻿using Steamworks;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
+﻿using DSMM.Common;
 using DSMM.Network.Enums;
 using DSMM.Network.Packets;
-using DSMM.Common;
-using System.Reflection;
-using Vector3 = DSMM.Math.Vector3;
-using Quaternion = UnityEngine.Quaternion;
-using System.Collections;
 using DSMM.UI;
+using Steamworks;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using UnityEngine;
+using Quaternion = UnityEngine.Quaternion;
+using Vector3 = DSMM.Math.Vector3;
 
 namespace DSMM.Network
 {
@@ -26,6 +25,15 @@ namespace DSMM.Network
 
         public bool IsCLient = false;
         public bool IsServer = false;
+
+        public GameMode CurrentGameMode = GameMode.Vanilla;
+
+        public ControlType CurrentControlType = ControlType.Player;
+
+        public float LastMoveDir = float.MaxValue;
+        public float LastSwordSpeed = float.MaxValue;
+
+        public bool IsApplyingRemoteAction = false;
 
         private void Awake()
         {
@@ -75,16 +83,38 @@ namespace DSMM.Network
         {
             var field = typeof(BaseActor).GetField("_moveDir", BindingFlags.Instance | BindingFlags.NonPublic);
 
-            PlayerPositionPacket packet_ = new PlayerPositionPacket
+            switch (CurrentGameMode)
             {
-                PlayerPosition = new Vector3(PlayerController.Instance._playerActor.gameObject.transform.position),
-                SwordPosition = new Vector3(PlayerController.Instance._sword.gameObject.transform.position),
-                SwordRotation = PlayerController.Instance._sword.gameObject.transform.rotation.eulerAngles.z,
-                MoveDirection = (float)field.GetValue(PlayerController.Instance._playerActor),
-                VelocityMagnitude = PlayerController.Instance._playerActor._rigidBody.velocity.magnitude
-            };
+                case GameMode.Vanilla:
+                    PlayerPositionPacket packet_ = new PlayerPositionPacket
+                    {
+                        PlayerPosition = new Vector3(PlayerController.Instance._playerActor.gameObject.transform.position),
+                        SwordPosition = new Vector3(PlayerController.Instance._sword.gameObject.transform.position),
+                        SwordRotation = PlayerController.Instance._sword.gameObject.transform.rotation.eulerAngles.z,
+                        MoveDirection = (float)field.GetValue(PlayerController.Instance._playerActor),
+                        VelocityMagnitude = PlayerController.Instance._playerActor._rigidBody.velocity.magnitude
+                    };
 
-            SendPacketToAll(packet_, sendMode:EP2PSend.k_EP2PSendUnreliableNoDelay);
+                    SendPacketToAll(packet_, sendMode: EP2PSend.k_EP2PSendUnreliableNoDelay);
+                    break;
+                case GameMode.CoOpChaos:
+                    if (IsCLient)
+                        return;
+
+                    PlayerController proxyPlayerController = GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>();
+
+                    PlayerPositionPacket packet__ = new PlayerPositionPacket
+                    {
+                        PlayerPosition = new Vector3(proxyPlayerController._playerActor.gameObject.transform.position),
+                        SwordPosition = new Vector3(proxyPlayerController._sword.gameObject.transform.position),
+                        SwordRotation = proxyPlayerController._sword.gameObject.transform.rotation.eulerAngles.z,
+                        MoveDirection = (float)field.GetValue(proxyPlayerController._playerActor),
+                        VelocityMagnitude = proxyPlayerController._playerActor._rigidBody.velocity.magnitude
+                    };
+
+                    SendPacketToAll(packet__, sendMode: EP2PSend.k_EP2PSendUnreliableNoDelay);
+                    break;
+            }
         }
 
         public void RegisterPackets()
@@ -96,6 +126,46 @@ namespace DSMM.Network
             PacketHandler.Packets.Add(typeof(PlayerTeleportPacket), OnPlayerTeleport);
             PacketHandler.Packets.Add(typeof(SwordChangePacket), OnSwordChange);
             PacketHandler.Packets.Add(typeof(RestartGamePacket), OnRestartGame);
+            PacketHandler.Packets.Add(typeof(PlayerActionPacket), OnPlayerActionPacket);
+            PacketHandler.Packets.Add(typeof(CheckPointPacket), OnCheckPoint);
+        }
+
+        public void OnCheckPoint(Player sender, object obj)
+        {
+            CheckPointPacket packet = (CheckPointPacket)obj;
+
+            switch (packet.Mode)
+            {
+                case CheckPointMode.Return:
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>().ReturnToCheckPoint();
+                    break;
+                case CheckPointMode.Trigger:
+                    CheckPointTrigger trigger = GameObject.FindObjectsOfType<CheckPointTrigger>().Where(x => x.transform.position == packet.Location.GetVector3()).FirstOrDefault();
+
+                    trigger.Activate();
+                    break;
+            }
+        }
+
+        private void OnPlayerActionPacket(Player sender, object obj)
+        {
+            PlayerActionPacket packet = (PlayerActionPacket)obj;
+
+            PlayerController proxyPlayerController = GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>();
+
+            IsApplyingRemoteAction = true;
+
+            switch (packet.ActionType)
+            {
+                case PlayerActionType.SwordMovement:
+                    proxyPlayerController._sword.SetMotorSpeed(packet.ActionValue);
+                    break;
+                case PlayerActionType.PlayerMovement:
+                    proxyPlayerController._playerActor.Move(packet.ActionValue);
+                    break;
+            }
+
+            IsApplyingRemoteAction = false;
         }
 
         private void OnRestartGame(Player sender, object obj)
@@ -106,7 +176,7 @@ namespace DSMM.Network
 
             Fader.Instance.FadeOut(1f, 0f, delegate
             {
-                StartCoroutine(AdjustSword(0));
+                StartCoroutine(Utils.AdjustSword(0));
                 StageManager.Instance.SetStage(StageManager.s_resetStage);
                 PlayerController.Instance.TeleportPlayer(new UnityEngine.Vector3(-3, 1, 0));
                 PlayerController.Instance._allowControl = true;
@@ -118,6 +188,10 @@ namespace DSMM.Network
                 Fader.Instance.gameObject.SetActive(false);
                 Main.Instance._winScreen.SetActive(false);
                 Main.Instance._gameHUD.Show(true);
+                foreach(SwordTrigger swordTrigger in FindObjectsOfType<SwordTrigger>())
+                {
+                    swordTrigger._activated = false;
+                }
             });
         }
 
@@ -125,7 +199,7 @@ namespace DSMM.Network
         {
             SwordChangePacket packet = (SwordChangePacket)obj;
 
-            switch(packet.SwordChangeType)
+            switch (packet.SwordChangeType)
             {
                 case SwordChangeType.Grow:
                     sender.GetPlayerController()._sword.Grow();
@@ -140,10 +214,12 @@ namespace DSMM.Network
         {
             PlayerTeleportPacket packet = (PlayerTeleportPacket)obj;
 
-            sender.GetPlayerController()._playerActor._rigidBody.bodyType = RigidbodyType2D.Dynamic;
-            sender.GetPlayerController()._playerActor.transform.localScale = UnityEngine.Vector3.one;
-            sender.GetPlayerController()._playerActor.transform.position = packet.Position.GetVector3();
-            sender.GetPlayerController()._sword.transform.rotation = Quaternion.identity;
+            PlayerController controller = CurrentGameMode == GameMode.Vanilla ? sender.GetPlayerController() : PlayerController.Instance;
+
+            controller._playerActor._rigidBody.bodyType = RigidbodyType2D.Dynamic;
+            controller._playerActor.transform.localScale = UnityEngine.Vector3.one;
+            controller._playerActor.transform.position = packet.Position.GetVector3();
+            controller._sword.transform.rotation = Quaternion.identity;
         }
 
         private void OnStageChangePacket(Player sender, object obj)
@@ -199,21 +275,24 @@ namespace DSMM.Network
         {
             PrimaryInfoPacket Packet = (PrimaryInfoPacket)obj;
 
-            if (HaveRecievePrimaryInfo)
+            if (HaveRecievePrimaryInfo || IsServer)
                 return;
 
-            MultiplayerMod.Instance.Log.LogMessage("Primary Info Recieve!");
+            MultiplayerMod.Instance.Logger.LogMessage("Primary Info Recieve!");
 
             StageManager.Instance.SetStage(Packet.Stage);
 
-            StartCoroutine(AdjustSword(Packet.Sword));
+            StartCoroutine(Utils.AdjustSword(Packet.Sword));
+
+            CurrentGameMode = Packet.GameMode;
 
             foreach (Player p in Packet.Players)
             {
-                Utils.CreatePlayer(p);
+                if (CurrentGameMode == GameMode.Vanilla)
+                    Utils.CreatePlayer(p);
             }
 
-            if(Main.Instance._state == Main.GameState.Title)
+            if (Main.Instance._state == Main.GameState.Title)
             {
                 Main.Instance.StartGame();
             }
@@ -224,9 +303,17 @@ namespace DSMM.Network
 
             PlayerController.Instance._allowControl = true;
 
+            if (CurrentGameMode == GameMode.CoOpChaos)
+            {
+                CurrentControlType = Packet.ControlType;
+            }
+
             Main.Instance._playtime = Packet.PlayTime + (float)(Utils.GetUnixTime() - Packet.Timestamp);
             Main._totalLapTime = Packet.TotalLapTime + (float)(Utils.GetUnixTime() - Packet.Timestamp);
             Main._lapCount = Packet.LapCount;
+
+            MultiplayerMod.Instance.Logger.LogMessage($"Current Mode: {NetworkManager.Instance.CurrentGameMode}");
+            MultiplayerMod.Instance.Logger.LogMessage($"Current Control Type: {NetworkManager.Instance.CurrentControlType}");
         }
 
         private void OnPlayerPosition(Player sender, object obj)
@@ -235,14 +322,27 @@ namespace DSMM.Network
             {
                 PlayerPositionPacket packet = (PlayerPositionPacket)obj;
 
-                PlayerController controller = sender.GetPlayerController();
+                PlayerController controller = CurrentGameMode == GameMode.Vanilla ? PlayerController.Instance : sender.GetPlayerController();
 
                 StartCoroutine(Utils.LerpPosition(controller._playerActor.gameObject.transform, packet.PlayerPosition, 100f));
                 StartCoroutine(Utils.LerpPosition(controller._sword.gameObject.transform, packet.SwordPosition, 100f));
                 StartCoroutine(Utils.LerpRotation(controller._sword.gameObject.transform, new Vector3(0, 0, packet.SwordRotation), 100f));
 
-                controller._playerActor.Move(packet.MoveDirection);
-                sender.VelocityMagnitude = packet.VelocityMagnitude;
+                switch (CurrentGameMode)
+                {
+                    case GameMode.Vanilla:
+                        controller._playerActor.Move(packet.MoveDirection);
+                        sender.VelocityMagnitude = packet.VelocityMagnitude;
+                        break;
+                    case GameMode.CoOpChaos:
+                        IsApplyingRemoteAction = true;
+
+                        controller._playerActor.Move(packet.MoveDirection);
+                        controller._playerActor._rigidBody.velocity = controller._playerActor._rigidBody.velocity.normalized * packet.VelocityMagnitude;
+
+                        IsApplyingRemoteAction = false;
+                        break;
+                }
             }
             catch { }
         }
@@ -310,6 +410,11 @@ namespace DSMM.Network
             return Players.FirstOrDefault(p => p.SteamID == SteamUser.GetSteamID().m_SteamID);
         }
 
+        public bool IsLocalPlayer()
+        {
+            return GetLocalPlayer().SteamID == SteamUser.GetSteamID().m_SteamID;
+        }
+
         public ulong GetLobbyOwner()
         {
             return SteamMatchmaking.GetLobbyOwner(SteamLobby.CurrentLobbyID).m_SteamID;
@@ -323,27 +428,25 @@ namespace DSMM.Network
                 Players[i].SwordPosition = new Vector3(Players[i].GetPlayerController()._sword.gameObject.transform.position);
                 Players[i].SwordRotation = Players[i].GetPlayerController()._sword.gameObject.transform.rotation.eulerAngles.z;
             }
-        }
 
-        IEnumerator AdjustSword(int targetSwordValue)
-        {
-            var field = typeof(Sword).GetField("_length", BindingFlags.Instance | BindingFlags.NonPublic);
-
-            int currentSwordValue = (int)field.GetValue(PlayerController.Instance._sword);
-
-            while (currentSwordValue != targetSwordValue)
+            if (CurrentGameMode == GameMode.CoOpChaos && IsServer)
             {
-                if (currentSwordValue < targetSwordValue)
-                {
-                    PlayerController.Instance._sword.Grow();
-                }
-                else
-                {
-                    PlayerController.Instance._sword.Shrink();
-                }
+                var field = typeof(BaseActor).GetField("_moveDir", BindingFlags.Instance | BindingFlags.NonPublic);
 
-                yield return null;
-                currentSwordValue = (int)field.GetValue(PlayerController.Instance._sword);
+                PlayerController proxyPlayerController = GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>();
+
+                PlayerController controller = PlayerController.Instance;
+
+                StartCoroutine(Utils.LerpPosition(controller._playerActor.gameObject.transform, new Vector3(proxyPlayerController._playerActor.gameObject.transform.position), 100f));
+                StartCoroutine(Utils.LerpPosition(controller._sword.gameObject.transform, new Vector3(proxyPlayerController._sword.gameObject.transform.position), 100f));
+                StartCoroutine(Utils.LerpRotation(controller._sword.gameObject.transform, new Vector3(0, 0, proxyPlayerController._sword.gameObject.transform.rotation.eulerAngles.z), 100f));
+
+                IsApplyingRemoteAction = true;
+
+                controller._playerActor.Move((float)field.GetValue(proxyPlayerController._playerActor));
+                controller._playerActor._rigidBody.velocity = proxyPlayerController._playerActor._rigidBody.velocity;
+
+                IsApplyingRemoteAction = false;
             }
         }
     }

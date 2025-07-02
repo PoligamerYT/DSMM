@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Collections.Generic;
 using static Main;
 using DSMM.UI;
+using DSMM.Network;
 
 namespace DSMM.Common
 {
@@ -53,6 +54,46 @@ namespace DSMM.Common
                 if(__instance.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                 {
                     __runOriginal = false;
+
+                    if (__instance.gameObject.name == "[ProxyPlayerController]")
+                    {
+                        MethodInfo firstUpdateMethod = typeof(PlayerController).GetMethod("FirstUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+                        MethodInfo updateControllsMethod = typeof(PlayerController).GetMethod("UpdateControls", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                        FieldInfo firstUpdateField = typeof(PlayerController).GetField("_firstUpdate", BindingFlags.Instance | BindingFlags.NonPublic);
+                        FieldInfo inputBlockTimerField = typeof(PlayerController).GetField("_inputBlockTimer", BindingFlags.Instance | BindingFlags.NonPublic);
+
+                        if ((bool)firstUpdateField.GetValue(__instance))
+                        {
+                            firstUpdateMethod.Invoke(__instance, null);
+                        }
+
+                        if (!PauseButtonUI.Instance._isPaused)
+                        {
+                            if ((float)inputBlockTimerField.GetValue(__instance) > 0f)
+                            {
+                                float currentValue = (float)inputBlockTimerField.GetValue(__instance);
+                                currentValue -= Time.deltaTime;
+                                inputBlockTimerField.SetValue(__instance, currentValue);
+                            }
+                            else if (__instance._playerActor._isAlive)
+                            {
+                                updateControllsMethod.Invoke(__instance, null);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.IsServer)
+                    {
+                        __runOriginal = false;
+
+                        if (Input.GetKeyDown(KeyCode.Escape))
+                        {
+                            PauseButtonUI.Instance.Toggle();
+                        }
+                    }
                 }
             }
         }
@@ -66,12 +107,87 @@ namespace DSMM.Common
                 if (__instance.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                     return;
 
-                PlayerTeleportPacket packet = new PlayerTeleportPacket
+                if(NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.IsServer)
                 {
-                    Position = new Math.Vector3(pos)
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>().TeleportPlayer(pos);
+                }
+                else if(NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
+                {
+                    PlayerTeleportPacket packet = new PlayerTeleportPacket
+                    {
+                        Position = new Math.Vector3(pos)
+                    };
+
+                    NetworkManager.Instance.SendPacketToAll(packet);
+                }
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(BaseActor), "Move")]
+        public static void OnMove(BaseActor __instance, ref bool __runOriginal, float dir)
+        {
+            if (NetworkManager.Instance.IsApplyingRemoteAction)
+                return;
+
+            if (!NetworkManager.Instance.IsConnected() || NetworkManager.Instance.CurrentGameMode != GameMode.CoOpChaos)
+                return;
+
+            if (NetworkManager.Instance.CurrentControlType == ControlType.Sword)
+            {
+                __runOriginal = false;
+            }
+            else
+            {
+                if (__instance.transform.root.gameObject.name != "[ProxyPlayerController]")
+                    __runOriginal = false;
+
+                if (NetworkManager.Instance.IsServer || dir == NetworkManager.Instance.LastMoveDir)
+                    return;
+
+                PlayerActionPacket packet = new PlayerActionPacket
+                {
+                    ActionType = PlayerActionType.PlayerMovement,
+                    ActionValue = dir
                 };
 
-                NetworkManager.Instance.SendPacketToAll(packet);
+                NetworkManager.Instance.SendPacketTo(packet, new Player(NetworkManager.Instance.GetLobbyOwner()), EP2PSend.k_EP2PSendUnreliableNoDelay);
+
+                NetworkManager.Instance.LastMoveDir = dir;
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(Sword), "SetMotorSpeed")]
+        public static void OnSetMotorSpeed(Sword __instance, ref bool __runOriginal, float speed)
+        {
+            if (NetworkManager.Instance.IsApplyingRemoteAction)
+                return;
+
+            if (!NetworkManager.Instance.IsConnected() || NetworkManager.Instance.CurrentGameMode != GameMode.CoOpChaos)
+                return;
+
+            if (NetworkManager.Instance.CurrentControlType == ControlType.Player)
+            {
+                __runOriginal = false;
+            }
+            else
+            {
+                if (__instance.transform.root.gameObject.name != "[ProxyPlayerController]")
+                    __runOriginal = false;
+
+                if (NetworkManager.Instance.IsServer || speed == NetworkManager.Instance.LastSwordSpeed)
+                    return;
+
+                PlayerActionPacket packet = new PlayerActionPacket
+                {
+                    ActionType = PlayerActionType.SwordMovement,
+                    ActionValue = speed
+                };
+
+                NetworkManager.Instance.SendPacketTo(packet, new Player(NetworkManager.Instance.GetLobbyOwner()), EP2PSend.k_EP2PSendUnreliableNoDelay);
+
+                NetworkManager.Instance.LastSwordSpeed = speed;
             }
         }
 
@@ -84,15 +200,25 @@ namespace DSMM.Common
                 if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                     return;
 
-                if (__instance.transform.parent.parent.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
+                if (__instance.transform.root.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                     return;
 
-                SwordChangePacket packet = new SwordChangePacket
+                if(NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
                 {
-                    SwordChangeType = SwordChangeType.Grow
-                };
+                    SwordChangePacket packet = new SwordChangePacket
+                    {
+                        SwordChangeType = SwordChangeType.Grow
+                    };
 
-                NetworkManager.Instance.SendPacketToAll(packet);
+                    NetworkManager.Instance.SendPacketToAll(packet);
+                }
+                else
+                {
+                    if (NetworkManager.Instance.IsCLient)
+                        return;
+
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>()._sword.Grow();
+                }
             }
         }
 
@@ -105,15 +231,25 @@ namespace DSMM.Common
                 if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                     return;
 
-                if (__instance.transform.parent.parent.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
+                if (__instance.transform.root.gameObject.name != SteamUser.GetSteamID().m_SteamID.ToString())
                     return;
 
-                SwordChangePacket packet = new SwordChangePacket
+                if (NetworkManager.Instance.CurrentGameMode == GameMode.Vanilla)
                 {
-                    SwordChangeType = SwordChangeType.Shrink
-                };
+                    SwordChangePacket packet = new SwordChangePacket
+                    {
+                        SwordChangeType = SwordChangeType.Shrink
+                    };
 
-                NetworkManager.Instance.SendPacketToAll(packet);
+                    NetworkManager.Instance.SendPacketToAll(packet);
+                }
+                else
+                {
+                    if (NetworkManager.Instance.IsCLient)
+                        return;
+
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>()._sword.Shrink();
+                }
             }
         }
 
@@ -135,8 +271,7 @@ namespace DSMM.Common
             if (UIManager.Instance.StartMultiplayerButton != null)
                 return;
 
-            UIManager.Instance.CreateMultiplayerButton();
-            UIManager.Instance.CreateMultiplayerSubMenu();
+            UIManager.Instance.Start();
         }
 
         [HarmonyPrefix]
@@ -200,11 +335,14 @@ namespace DSMM.Common
         {
             if (NetworkManager.Instance.IsConnected())
             {
+                if (NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+                    return;
+
                 if (ulong.TryParse(__instance.gameObject.transform.parent.gameObject.name, out ulong steamIDValue))
                 {
                     CSteamID steamID = new CSteamID(steamIDValue);
 
-                    if(NetworkManager.Instance.GetLocalPlayer().SteamID != steamID.m_SteamID)
+                    if (NetworkManager.Instance.GetLocalPlayer().SteamID != steamID.m_SteamID)
                     {
                         if (!NetworkManager.Instance.IsPlayer(steamID.m_SteamID))
                             return;
@@ -246,6 +384,58 @@ namespace DSMM.Common
                         }
                     }
                 }
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(CheckPointTrigger), "OnTriggerEnter2D")]
+        public static void OnTriggerEnter2D(CheckPointTrigger __instance, ref bool __runOriginal, Collider2D collision)
+        {
+            if (NetworkManager.Instance.IsConnected() && NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos)
+            {
+                __runOriginal = false;
+
+                if (!(CheckPointTrigger.s_activeCheckPoint == __instance))
+                {
+                    GameObject.Find("[ProxyPlayerController]").GetComponent<PlayerController>()._checkPointPos = __instance.transform.position;
+                    if (__instance._isStart && !__instance._startSfxSkipComplete)
+                    {
+                        __instance._startSfxSkipComplete = true;
+                    }
+                    else
+                    {
+                        AudioManager.Instance.PlayOneShot(__instance._sfx, __instance._sfxVolume);
+                    }
+
+                    CheckPointTrigger.s_activeCheckPoint?.Deactivate();
+                    CheckPointTrigger.s_activeCheckPoint = __instance;
+                    ParticleSystem.EmissionModule emission = __instance._particleSystem.emission;
+                    emission.enabled = true;
+                    __instance._particleSystem.Emit(4);
+                }
+
+                CheckPointPacket packet = new CheckPointPacket
+                {
+                    Mode = CheckPointMode.Trigger,
+                    Location = new Math.Vector3(__instance.transform.position)
+                };
+
+                NetworkManager.Instance.SendPacketToAll(packet);
+            }
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(PlayerController), "ReturnToCheckPoint")]
+        public static void OnReturnToCheckPoint()
+        {
+            if (NetworkManager.Instance.IsConnected() && NetworkManager.Instance.CurrentGameMode == GameMode.CoOpChaos && NetworkManager.Instance.IsCLient)
+            {
+                CheckPointPacket packet = new CheckPointPacket
+                {
+                    Mode = CheckPointMode.Return
+                };
+
+                NetworkManager.Instance.SendPacketToAll(packet);
             }
         }
     }

@@ -40,7 +40,7 @@ namespace DSMM.Discord
             {      
                 Default();
             }
-            catch (DllNotFoundException e)
+            catch (DllNotFoundException)
             {
                 Debug.LogWarning("No Discord DLL found, plase install to be able to use the discord functionality");
             }
@@ -64,13 +64,13 @@ namespace DSMM.Discord
             {
                 if (res == Result.Ok)
                 {
-                    MultiplayerMod.Instance.Log.LogMessage("Discord Rich Presence Updated!");
+                    MultiplayerMod.Instance.Logger.LogMessage("Discord Rich Presence Updated!");
                 }
             });
 
             activityManager.OnActivityJoin += (string secret) =>
             {
-                MultiplayerMod.Instance.Log.LogMessage($"Received Join Request with Steam lobby ID: {secret}");
+                MultiplayerMod.Instance.Logger.LogMessage($"Received Join Request with Steam lobby ID: {secret}");
 
                 UIManager.Instance.Loading();
 
@@ -117,7 +117,7 @@ namespace DSMM.Discord
             {
                 if (result == Result.Ok)
                 {
-                    MultiplayerMod.Instance.Log.LogMessage("Discord Rich Presence Is Back To Deafult!");
+                    MultiplayerMod.Instance.Logger.LogMessage("Discord Rich Presence Is Back To Deafult!");
                 }
             });
         }
@@ -154,7 +154,7 @@ namespace DSMM.Discord
             {
                 if (result == Result.Ok)
                 {
-                    MultiplayerMod.Instance.Log.LogMessage("Discord Rich Presence Updated with Steam Lobby ID.");
+                    MultiplayerMod.Instance.Logger.LogMessage("Discord Rich Presence Updated with Steam Lobby ID.");
                 }
             });
         }
