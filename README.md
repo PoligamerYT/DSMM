@@ -8,6 +8,23 @@ Bring your sword (and your friends)! This mod adds **multiplayer functionality**
 - 📍 Player nameplates
 - 🔄 Full movement and animation sync
 - 🧠 Host & Join system
+- 🧩 Game Modes: Vanilla & Co-op Chaos
+
+---
+
+## 🕹️ Game Modes
+
+### ⚔️ Vanilla
+
+Just like the original game, but now with friends. Everyone has their own sword, their own body, and their own bad decisions.
+
+### 🤪 Co-op Chaos
+
+One player controls the **movement**, the other controls the **sword**. Work together (or against each other) to get as deep as possible.
+
+> Yes, it’s as chaotic as it sounds.
+
+You can choose your game mode when hosting a lobby.
 
 ---
 
@@ -15,10 +32,10 @@ Bring your sword (and your friends)! This mod adds **multiplayer functionality**
 
 ### Requirements
 
-- ✅ Deepest Sword (latest version)
-- ✅ BepInEx
-- ✅ Discord Game SDK (optional)
-- ✅ Internet connection
+* ✅ Deepest Sword (latest version)
+* ✅ BepInEx
+* ✅ Discord Game SDK (optional)
+* ✅ Internet connection
 
 ### Steps:
 
@@ -59,7 +76,7 @@ If you want to enable enhanced features such as **Discord Invite System & Better
 Need help or found a bug? We’ve got your back.
 
 - 🛠️ [Report Issue](https://github.com/PoligamerYT/DSMM/issues)
-- 💬 Join the [Discord Server](https://discord.gg/Tv9BKZ8N) for support
+- 💬 Join the [Discord Server](https://discord.gg/TNfsDfQFWB) for support
 
 ---
 
