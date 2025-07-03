@@ -322,7 +322,7 @@ namespace DSMM.Network
             {
                 PlayerPositionPacket packet = (PlayerPositionPacket)obj;
 
-                PlayerController controller = CurrentGameMode == GameMode.Vanilla ? PlayerController.Instance : sender.GetPlayerController();
+                PlayerController controller = CurrentGameMode == GameMode.Vanilla ? sender.GetPlayerController() : PlayerController.Instance;
 
                 StartCoroutine(Utils.LerpPosition(controller._playerActor.gameObject.transform, packet.PlayerPosition, 100f));
                 StartCoroutine(Utils.LerpPosition(controller._sword.gameObject.transform, packet.SwordPosition, 100f));
