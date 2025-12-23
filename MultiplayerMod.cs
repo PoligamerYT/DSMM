@@ -12,7 +12,7 @@ namespace DSMM
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     public class MultiplayerMod : BaseUnityPlugin
     {
-        public const string PluginGuid = "org.poligamer.DSMM", PluginName = "Multiplayer Mod", PluginVersion = "1.0.1";
+        public const string PluginGuid = "org.poligamer.DSMM", PluginName = "Multiplayer Mod", PluginVersion = "1.0.2";
 
         public static MultiplayerMod Instance;
         
@@ -27,6 +27,7 @@ namespace DSMM
             InitHarmony();
 
             new GameObject("[UIManager]").AddComponent<UIManager>();
+            new GameObject("[BandwidthMonitor]").AddComponent<BandwidthMonitor>();
             new GameObject("[NetworkManager]").AddComponent<NetworkManager>();
             new GameObject("[DiscordManager]").AddComponent<DiscordManager>();
 

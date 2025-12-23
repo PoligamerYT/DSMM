@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using MessagePack;
 
 namespace DSMM.Network.Packets
 {
-    [Serializable]
+    [MessagePackObject]
     public class RestartGamePacket : Packet
     {
+        [Key(1)]
         public float Timestamp { get; set; }
     }
 }

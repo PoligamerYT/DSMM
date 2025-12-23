@@ -9,7 +9,6 @@ using TMPro;
 using UnityEngine;
 using Quaternion = UnityEngine.Quaternion;
 using Random = System.Random;
-using Vector3 = DSMM.Math.Vector3;
 
 namespace DSMM.Common
 {
@@ -34,7 +33,7 @@ namespace DSMM.Common
             playerController._playerActor._collider.gameObject.SetActive(false);
             playerController._sword.gameObject.GetComponent<Rigidbody2D>().gravityScale = 0;
             playerController._sword._model.gameObject.SetActive(false);
-            playerController._playerActor.gameObject.transform.position = player.PlayerPosition.GetVector3();
+            playerController._playerActor.gameObject.transform.position = player.PlayerPosition;
 
             if (playerController._playerActor._sprite.transform.childCount > 0)
                 GameObject.Destroy(playerController._playerActor._sprite.transform.GetChild(0).gameObject);
@@ -63,8 +62,8 @@ namespace DSMM.Common
             playerController._playerActor._collider.gameObject.SetActive(false);
             playerController._sword.gameObject.GetComponent<Rigidbody2D>().gravityScale = 0;
             playerController._sword._model.gameObject.SetActive(false);
-            playerController._playerActor.gameObject.transform.position = player.PlayerPosition.GetVector3();
-            playerController._sword.gameObject.transform.position = player.SwordPosition.GetVector3();
+            playerController._playerActor.gameObject.transform.position = player.PlayerPosition;
+            playerController._sword.gameObject.transform.position = player.SwordPosition;
             playerController._sword.gameObject.transform.rotation = Quaternion.Euler(0, 0, player.SwordRotation);
 
             if(playerController._playerActor._sprite.transform.childCount > 0)
@@ -91,8 +90,8 @@ namespace DSMM.Common
             {
                 SteamID = SteamUser.GetSteamID().m_SteamID,
 
-                PlayerPosition = new Vector3(playerController._playerActor.gameObject.transform.position),
-                SwordPosition = new Vector3(playerController._sword.gameObject.transform.position),
+                PlayerPosition = playerController._playerActor.gameObject.transform.position,
+                SwordPosition = playerController._sword.gameObject.transform.position,
                 SwordRotation = playerController._sword.gameObject.transform.rotation.eulerAngles.z
             };
 
@@ -157,7 +156,7 @@ namespace DSMM.Common
         public static IEnumerator LerpPosition(Transform transform, Vector3 targetPos, float durationMs)
         {
             UnityEngine.Vector3 startPos = transform.position;
-            UnityEngine.Vector3 unityTargetPos = targetPos.GetVector3();
+            UnityEngine.Vector3 unityTargetPos = targetPos;
 
             if(startPos == unityTargetPos)
             {
@@ -180,7 +179,7 @@ namespace DSMM.Common
         public static IEnumerator LerpRotation(Transform transform, Vector3 targetEuler, float durationMs)
         {
             Quaternion startRotation = transform.rotation;
-            Quaternion targetRotation = Quaternion.Euler(targetEuler.GetVector3());
+            Quaternion targetRotation = Quaternion.Euler(targetEuler);
 
             if (Quaternion.Angle(startRotation, targetRotation) < 0.1f)
             {
@@ -250,6 +249,15 @@ namespace DSMM.Common
             Array values = Enum.GetValues(typeof(T));
             Random random = new Random();
             return (T)values.GetValue(random.Next(values.Length));
+        }
+
+        public static bool HasArg(string flag)
+        {
+            foreach (var arg in Environment.GetCommandLineArgs())
+                if (arg.Equals(flag, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+            return false;
         }
     }
 }

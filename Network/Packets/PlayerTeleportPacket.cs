@@ -1,11 +1,12 @@
-﻿using DSMM.Math;
-using System;
+﻿using MessagePack;
+using UnityEngine;
 
 namespace DSMM.Network.Packets
 {
-    [Serializable]
+    [MessagePackObject]
     public class PlayerTeleportPacket : Packet
     {
+        [Key(1)]
         public Vector3 Position { get; set; }
     }
 }

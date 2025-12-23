@@ -115,7 +115,7 @@ namespace DSMM.Common
                 {
                     PlayerTeleportPacket packet = new PlayerTeleportPacket
                     {
-                        Position = new Math.Vector3(pos)
+                        Position = pos
                     };
 
                     NetworkManager.Instance.SendPacketToAll(packet);
@@ -417,7 +417,7 @@ namespace DSMM.Common
                 CheckPointPacket packet = new CheckPointPacket
                 {
                     Mode = CheckPointMode.Trigger,
-                    Location = new Math.Vector3(__instance.transform.position)
+                    Location = __instance.transform.position
                 };
 
                 NetworkManager.Instance.SendPacketToAll(packet);

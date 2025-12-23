@@ -1,11 +1,11 @@
-﻿using Steamworks;
-using System;
+﻿using MessagePack;
 
 namespace DSMM.Network.Packets
 {
-    [Serializable]
+    [MessagePackObject]
     public class HostLeavePacket : Packet
     {
-        public CSteamID HostSteamID { get; set; }
+        [Key(1)]
+        public ulong HostSteamID { get; set; }
     }
 }

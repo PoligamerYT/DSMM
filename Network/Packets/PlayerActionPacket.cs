@@ -1,13 +1,14 @@
 ﻿using DSMM.Network.Enums;
-using DSMM.Network.Packets;
-using System;
+using MessagePack;
 
 namespace DSMM.Network.Packets
 {
-    [Serializable]
+    [MessagePackObject]
     public class PlayerActionPacket : Packet
     {
+        [Key(1)]
         public PlayerActionType ActionType;
+        [Key(2)]
         public float ActionValue;
     }
 }

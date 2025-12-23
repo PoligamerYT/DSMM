@@ -53,7 +53,7 @@ namespace DSMM.Network
                 {
                     HostLeavePacket Packet = new HostLeavePacket
                     {
-                        HostSteamID = SteamUser.GetSteamID()
+                        HostSteamID = SteamUser.GetSteamID().m_SteamID
                     };
 
                     NetworkManager.Instance.SendPacketToAll(Packet);
@@ -267,9 +267,10 @@ namespace DSMM.Network
                     byte[] packetData = new byte[packetSize];
                     uint bytesRead;
 
-                    if (SteamNetworking.ReadP2PPacket(packetData, packetSize,
-                        out bytesRead, out remoteSteamID))
+                    if (SteamNetworking.ReadP2PPacket(packetData, packetSize, out bytesRead, out remoteSteamID))
                     {
+                        BandwidthMonitor.Instance.AddReceived((int)packetSize);
+
                         PacketHandler.DeserializePacket(remoteSteamID, packetData, bytesRead);
                     }
                 }

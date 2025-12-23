@@ -1,11 +1,12 @@
 ﻿using DSMM.Network.Enums;
-using System;
+using MessagePack;
 
 namespace DSMM.Network.Packets
 {
-    [Serializable]
+    [MessagePackObject]
     public class SwordChangePacket : Packet
     {
+        [Key(1)]
         public SwordChangeType SwordChangeType { get; set; }
     }
 }

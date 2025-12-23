@@ -1,6 +1,6 @@
 ﻿namespace DSMM.Network.Enums
 {
-    public enum GameMode
+    public enum GameMode : byte
     {
         Vanilla,
         CoOpChaos

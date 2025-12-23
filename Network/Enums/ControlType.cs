@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DSMM.Network.Enums
+﻿namespace DSMM.Network.Enums
 {
-    public enum ControlType
+    public enum ControlType : byte
     {
         Sword,
         Player

@@ -1,73 +1,68 @@
 ﻿using DSMM.Network.Packets;
+using MessagePack;
 using Steamworks;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
-using UnityEngine;
 
 namespace DSMM.Network
 {
     public class PacketHandler
     {
         public static Dictionary<Type, PacketHandlerDelegate> Packets = new Dictionary<Type, PacketHandlerDelegate>();
-        public static InputBuffer InputBuffer = new InputBuffer();
 
         public delegate void PacketHandlerDelegate(Player sender, object obj);
 
-        public static byte[] SerializePacket(object obj)
+        public static byte[] SerializePacket<T>(T packet)
         {
-            using (MemoryStream memoryStream = new MemoryStream())
+            var unions = typeof(Packet).GetCustomAttributes(typeof(UnionAttribute), false);
+
+            int id = -1;
+            foreach (UnionAttribute union in unions)
             {
-                BinaryFormatter binaryFormatter = new BinaryFormatter();
-                binaryFormatter.Serialize(memoryStream, obj);
-                return memoryStream.ToArray();
+                if (union.SubType == packet.GetType())
+                {
+                    id = union.Key;
+                    break;
+                }
             }
+
+            byte[] payload = MessagePackSerializer.Serialize(packet, NetworkManager.Instance.MessagePackOptions);
+
+            byte[] data = new byte[payload.Length + 1];
+            data[0] = (byte)id;
+            Buffer.BlockCopy(payload, 0, data, 1, payload.Length);
+
+            return data;
         }
+
 
         public static void DeserializePacket(CSteamID senderSteamID, byte[] data, uint dataSize)
         {
-            using (MemoryStream memoryStream = new MemoryStream(data))
+            int unionId = data[0];
+
+            Type packetType = null;
+            foreach (UnionAttribute union in typeof(Packet).GetCustomAttributes(typeof(UnionAttribute), false))
             {
-                BinaryFormatter binaryFormatter = new BinaryFormatter();
-                object deserializedObject = binaryFormatter.Deserialize(memoryStream);
-
-                foreach (Type type in Packets.Keys)
+                if (union.Key == unionId)
                 {
-                    if (deserializedObject.GetType().Name == type.Name)
-                    {
-                        Packets.TryGetValue(type, out PacketHandlerDelegate action);
-
-                        var packet = (Packet)deserializedObject;
-                        if (packet.BufferPacket)
-                        {
-                            InputBuffer.AddToBuffer(senderSteamID, data);
-                        }
-                        else
-                        {
-                            Player player;
-
-                            if (!NetworkManager.Instance.IsPlayer(senderSteamID.m_SteamID))
-                            {
-                                player = new Player(senderSteamID.m_SteamID);
-                            }
-                            else
-                            {
-                                player = NetworkManager.Instance.GetPlayer(senderSteamID.m_SteamID);
-                            }
-
-                            action.Invoke(player, deserializedObject);
-                        }
-
-                        return;
-                    }
+                    packetType = union.SubType;
+                    break;
                 }
             }
-        }
 
-        public static void ProcessBufferedPackets()
-        {
-            InputBuffer.ProcessBuffer();
+            if (packetType == null)
+                return;
+
+            Packet packet = (Packet)MessagePackSerializer.Deserialize(packetType, data.AsSpan(1, (int)dataSize - 1).ToArray(), NetworkManager.Instance.MessagePackOptions);
+
+            if (!Packets.TryGetValue(packetType, out var action))
+                return;
+
+            ulong steamId = senderSteamID.m_SteamID;
+
+            Player player = NetworkManager.Instance.IsPlayer(steamId) ? NetworkManager.Instance.GetPlayer(steamId) : new Player(steamId);
+
+            action.Invoke(player, packet);
         }
     }
 }

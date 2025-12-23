@@ -1,14 +1,11 @@
-﻿using System;
-using UnityEngine;
-using Vector3 = DSMM.Math.Vector3;
+﻿using UnityEngine;
 
 namespace DSMM.Network
 {
-    [Serializable]
     public class Player
     {
-        public Player()
-        {
+        public Player() 
+        { 
         }
 
         public Player(ulong SteamID)
