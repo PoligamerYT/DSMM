@@ -67,6 +67,8 @@ namespace DSMM.Network
             NetworkManager.Instance.IsCLient = false;
             NetworkManager.Instance.IsServer = false;
 
+            NetworkManager.Instance.IsConnecting = false;
+
             NetworkManager.Instance.HaveRecievePrimaryInfo = false;
 
             NetworkManager.Instance.LastSwordSpeed = float.MaxValue;
@@ -123,6 +125,8 @@ namespace DSMM.Network
 
         private void OnJoinRequest(GameLobbyJoinRequested_t callback)
         {
+            UIManager.Instance.GetPauseScreenUI().Show(true);
+
             UIManager.Instance.Loading();
 
             UIManager.Instance.GetPauseScreenUI().ShowSubmenu(4);
@@ -172,9 +176,12 @@ namespace DSMM.Network
             LobbyName = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name");
 
             if (!NetworkManager.Instance.IsServer)
+            {
                 NetworkManager.Instance.IsCLient = true;
+                NetworkManager.Instance.IsConnecting = true;
+            }
 
-            if(NetworkManager.Instance.IsCLient)
+            if (NetworkManager.Instance.IsCLient)
                 PlayerController.Instance._allowControl = false;
 
             PlayerController.Instance.RespawnPlayer();

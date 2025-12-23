@@ -14,6 +14,22 @@ namespace DSMM.Common
 {
     public class Patches
     {
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(PauseButtonUI), "Toggle")]
+        public static void OnToggle(ref bool __runOriginal)
+        {
+            if (NetworkManager.Instance.IsConnecting && !NetworkManager.Instance.HaveRecievePrimaryInfo)
+                __runOriginal = false;
+        }
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(PauseScreenUI), "Back")]
+        public static void OnBack(ref bool __runOriginal)
+        {
+            if (NetworkManager.Instance.IsConnecting && !NetworkManager.Instance.HaveRecievePrimaryInfo)
+                __runOriginal = false;
+        }
+
         [HarmonyPostfix]
         [HarmonyPatch(typeof(PauseScreenUI), "Show")]
         public static void OnShow(bool instant = false)

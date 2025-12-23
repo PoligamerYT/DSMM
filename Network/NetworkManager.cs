@@ -22,6 +22,8 @@ namespace DSMM.Network
 
         public bool HaveRecievePrimaryInfo = false;
 
+        public bool IsConnecting = false;
+
         public int MaxPlayers = 5;
         public static NetworkManager Instance;
 
@@ -320,6 +322,8 @@ namespace DSMM.Network
             }
 
             UIManager.Instance.OnEnterLobby();
+
+            NetworkManager.Instance.IsConnecting = false;
 
             HaveRecievePrimaryInfo = true;
 
