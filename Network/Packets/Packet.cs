@@ -12,6 +12,7 @@ namespace DSMM.Network.Packets
     [Union(6, typeof(RestartGamePacket))]
     [Union(7, typeof(StageChangePacket))]
     [Union(8, typeof(SwordChangePacket))]
+    [Union(9, typeof(PingPacket))]
     public class Packet
     {
 

@@ -151,6 +151,8 @@ namespace DSMM.Network
             }
 
             DiscordManager.Instance.UpdateDiscordRichPresenceWithSecret(CurrentLobbyID.ToString());
+
+            UIManager.Instance.TabManager.AddPlayer(Player);
         }
 
         private void OnPlayerLeft(CSteamID Player)
@@ -168,6 +170,8 @@ namespace DSMM.Network
                 Utils.DestroyPlayer(Player.m_SteamID);
 
             DiscordManager.Instance.UpdateDiscordRichPresenceWithSecret(CurrentLobbyID.ToString());
+
+            UIManager.Instance.TabManager.RemovePlayer(Player);
         }
 
         private void OnLobbyEntered(LobbyEnter_t callback)
@@ -187,6 +191,8 @@ namespace DSMM.Network
             PlayerController.Instance.RespawnPlayer();
 
             Utils.CreatePlayer(PlayerController.Instance);
+
+            StartCoroutine(SendPing());
         }
 
         private void OnP2PSessionRequest(P2PSessionRequest_t pCallback)
@@ -236,6 +242,22 @@ namespace DSMM.Network
             DetectPLayerJoinOrLeave();
         }
 
+        IEnumerator SendPing()
+        {
+            while (NetworkManager.Instance.IsConnected())
+            {
+                PingPacket packet = new PingPacket
+                {
+                    Timestamp = Utils.GetUnixTimeMs()
+                };
+
+                NetworkManager.Instance.SendPacketTo(packet, new Player(NetworkManager.Instance.GetLobbyOwner()));
+
+                yield return new WaitForSeconds(1f);
+            }
+        }
+
+
         IEnumerator SendPrimaryInfo(ulong steamId)
         {
             MultiplayerMod.Instance.Logger.LogMessage($"Primary Info Send to: {steamId}!");
@@ -261,6 +283,8 @@ namespace DSMM.Network
                 yield return new WaitForSeconds(3f);
             }
         }
+
+
 
         IEnumerator PacketCheckCoroutine()
         {

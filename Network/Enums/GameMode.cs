@@ -3,6 +3,7 @@
     public enum GameMode : byte
     {
         Vanilla,
-        CoOpChaos
+        CoOpChaos,
+        VanillaSpeedrun
     }
 }

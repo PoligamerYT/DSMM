@@ -7,6 +7,7 @@ using MessagePack;
 using MessagePack.Formatters;
 using MessagePack.Resolvers;
 using Steamworks;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -23,6 +24,8 @@ namespace DSMM.Network
         public bool HaveRecievePrimaryInfo = false;
 
         public bool IsConnecting = false;
+
+        public double Ping { get; private set; }
 
         public int MaxPlayers = 5;
         public static NetworkManager Instance;
@@ -142,12 +145,20 @@ namespace DSMM.Network
             PacketHandler.Packets.Add(typeof(HostLeavePacket), OnHostLeave);
             PacketHandler.Packets.Add(typeof(PrimaryInfoPacket), OnPrimaryInfo);
             PacketHandler.Packets.Add(typeof(PlayerPositionPacket), OnPlayerPosition);
-            PacketHandler.Packets.Add(typeof(StageChangePacket), OnStageChangePacket);
+            PacketHandler.Packets.Add(typeof(StageChangePacket), OnStageChange);
             PacketHandler.Packets.Add(typeof(PlayerTeleportPacket), OnPlayerTeleport);
             PacketHandler.Packets.Add(typeof(SwordChangePacket), OnSwordChange);
             PacketHandler.Packets.Add(typeof(RestartGamePacket), OnRestartGame);
-            PacketHandler.Packets.Add(typeof(PlayerActionPacket), OnPlayerActionPacket);
+            PacketHandler.Packets.Add(typeof(PlayerActionPacket), OnPlayerAction);
             PacketHandler.Packets.Add(typeof(CheckPointPacket), OnCheckPoint);
+            PacketHandler.Packets.Add(typeof(PingPacket), OnPing);
+        }
+
+        private void OnPing(Player sender, object obj)
+        {
+            PingPacket packet = (PingPacket)obj;
+
+            Ping = Utils.GetUnixTimeMs() - packet.Timestamp;
         }
 
         public void OnCheckPoint(Player sender, object obj)
@@ -167,7 +178,7 @@ namespace DSMM.Network
             }
         }
 
-        private void OnPlayerActionPacket(Player sender, object obj)
+        private void OnPlayerAction(Player sender, object obj)
         {
             PlayerActionPacket packet = (PlayerActionPacket)obj;
 
@@ -242,7 +253,7 @@ namespace DSMM.Network
             controller._sword.transform.rotation = Quaternion.identity;
         }
 
-        private void OnStageChangePacket(Player sender, object obj)
+        private void OnStageChange(Player sender, object obj)
         {
             StageChangePacket packet = (StageChangePacket)obj;
 

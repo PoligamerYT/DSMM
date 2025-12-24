@@ -1,5 +1,6 @@
 ﻿using DSMM.Network;
 using DSMM.Network.Enums;
+using DSMM.UI.Tab;
 using Steamworks;
 using System;
 using System.Collections.Generic;
@@ -30,6 +31,8 @@ namespace DSMM.UI
 
         public static UIManager Instance;
 
+        public TabManager TabManager;
+
         public void Awake()
         {
             if (Instance == null)
@@ -46,8 +49,13 @@ namespace DSMM.UI
 
         public void Start()
         {
+            if(TabManager == null)
+                TabManager = gameObject.AddComponent<TabManager>();
+
             CreateMultiplayerButton();
             CreateMultiplayerSubMenu();
+
+            TabManager.Create();
         }
 
         public void CreateMultiplayerButton()
