@@ -24,13 +24,37 @@ namespace DSMM.UI.Tab
 
         private void LoadImage()
         {
-            ProfilePic.texture = Utils.GetSteamImageAsTexture(SteamFriends.GetLargeFriendAvatar(CSteamID));
+            ImageLoaded = Callback<AvatarImageLoaded_t>.Create(OnImageLoaded);
+
+            int imageId = SteamFriends.GetLargeFriendAvatar(CSteamID);
+
+            if (imageId > 0)
+            {
+                ProfilePic.texture = Utils.GetSteamImageAsTexture(imageId);
+            }
+            else
+            {
+                ProfilePic.texture = Utils.GetImageFromResourcesAsTexture("DSMM.Resources.default_avatar.png");
+            }
+        }
+
+        private void OnImageLoaded(AvatarImageLoaded_t callback)
+        {
+            if (callback.m_steamID != CSteamID)
+                return;
+
+            ProfilePic.texture = Utils.GetSteamImageAsTexture(callback.m_iImage);
         }
 
         private void UpdateUsername()
         {
             name = CSteamID.ToString();
             Username.text = SteamFriends.GetFriendPersonaName(CSteamID);
+        }
+
+        private void OnDestroy()
+        {
+            ImageLoaded?.Dispose();
         }
     }
 }

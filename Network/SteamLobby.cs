@@ -101,7 +101,7 @@ namespace DSMM.Network
 
             MultiplayerMod.Instance.Logger.LogMessage("Lobby Created Succesfully");
 
-            SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name", SteamFriends.GetPersonaName().ToString() + "´s LOBBY");
+            SteamMatchmaking.SetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "name", SteamFriends.GetPersonaName().ToString() + "'s LOBBY");
 
             NetworkManager.Instance.IsServer = true;
 
@@ -139,6 +139,10 @@ namespace DSMM.Network
         {
             MultiplayerMod.Instance.Logger.LogMessage("New player joined: " + SteamFriends.GetFriendPersonaName(Player));
 
+            DiscordManager.Instance.UpdateDiscordRichPresenceWithSecret(CurrentLobbyID.ToString());
+
+            UIManager.Instance.TabManager.AddPlayer(Player);
+
             if (NetworkManager.Instance.IsCLient && !NetworkManager.Instance.HaveRecievePrimaryInfo)
                 return;
 
@@ -149,10 +153,6 @@ namespace DSMM.Network
             {
                 StartCoroutine(SendPrimaryInfo(Player.m_SteamID));
             }
-
-            DiscordManager.Instance.UpdateDiscordRichPresenceWithSecret(CurrentLobbyID.ToString());
-
-            UIManager.Instance.TabManager.AddPlayer(Player);
         }
 
         private void OnPlayerLeft(CSteamID Player)
@@ -248,7 +248,8 @@ namespace DSMM.Network
             {
                 PingPacket packet = new PingPacket
                 {
-                    Timestamp = Utils.GetUnixTimeMs()
+                    Timestamp = Utils.GetUnixTimeMs(),
+                    SendType = SendType.Request
                 };
 
                 NetworkManager.Instance.SendPacketTo(packet, new Player(NetworkManager.Instance.GetLobbyOwner()));

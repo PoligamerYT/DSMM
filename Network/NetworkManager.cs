@@ -158,7 +158,20 @@ namespace DSMM.Network
         {
             PingPacket packet = (PingPacket)obj;
 
-            Ping = Utils.GetUnixTimeMs() - packet.Timestamp;
+            switch(packet.SendType)
+            {
+                case SendType.Request:
+                    PingPacket responsePacket = new PingPacket
+                    {
+                        Timestamp = packet.Timestamp,
+                        SendType = SendType.Response
+                    };
+                    SendPacketTo(responsePacket, sender, EP2PSend.k_EP2PSendUnreliableNoDelay);
+                    break;
+                case SendType.Response:
+                    Ping = Utils.GetUnixTimeMs() - packet.Timestamp;
+                    break;
+            }
         }
 
         public void OnCheckPoint(Player sender, object obj)

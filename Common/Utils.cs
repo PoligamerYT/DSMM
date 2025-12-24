@@ -3,6 +3,7 @@ using DSMM.Network.Enums;
 using Steamworks;
 using System;
 using System.Collections;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using TMPro;
@@ -199,6 +200,32 @@ namespace DSMM.Common
                     texture.Apply();
                 }
             }
+            return texture;
+        }
+
+        public static Texture2D GetImageFromResourcesAsTexture(string path)
+        {
+            Assembly assembly = Assembly.GetExecutingAssembly();
+
+            Stream stream = assembly.GetManifestResourceStream(path);
+            if (stream == null)
+            {
+                MultiplayerMod.Instance.Logger.LogError($"Embedded resource not found: {path}");
+                return null;
+            }
+
+            byte[] data = new byte[stream.Length];
+            stream.Read(data, 0, data.Length);
+
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!texture.LoadImage(data))
+            {
+                MultiplayerMod.Instance.Logger.LogError("Failed to load PNG from embedded resource");
+                return null;
+            }
+
+            texture.Apply();
+
             return texture;
         }
 
